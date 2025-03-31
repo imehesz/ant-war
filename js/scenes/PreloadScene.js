@@ -27,6 +27,7 @@ class PreloadScene extends Phaser.Scene {
         this.load.image(ASSETS.GATHERER_ANT_CARRYING, 'gatherer_ant_carrying.png');
         this.load.image(ASSETS.MEGA_FIGHTER_ANT, 'mega_fighter_ant.png');
         this.load.image(ASSETS.POWERUP_BG, 'powerup_bg.png');
+        this.load.image(ASSETS.BACKGROUND_TILE, 'bg-tile.png');
 
         // Add loading progress bar (optional but good practice)
         let progressBar = this.add.graphics();

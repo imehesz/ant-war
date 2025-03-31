@@ -40,5 +40,6 @@ const ASSETS = {
     GATHERER_ANT_CARRYING: 'gatherer_ant_carrying',
     MEGA_FIGHTER_ANT: 'mega_fighter_ant',
     POWERUP_BG: 'powerup_bg',
+    BACKGROUND_TILE: 'background_tile'
     // Add sound keys later if needed
 };

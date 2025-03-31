@@ -18,6 +18,22 @@ class GameScene extends Phaser.Scene {
         console.log("GameScene create");
         this.isGameOver = false;
 
+        
+    // Create a TileSprite that covers the entire game area
+    // It will automatically repeat the ASSETS.BACKGROUND_TILE texture
+    this.background = this.add.tileSprite(
+        0,              // Start x coordinate
+        0,              // Start y coordinate
+        GAME_WIDTH,     // Width of the game screen
+        GAME_HEIGHT,    // Height of the game screen
+        ASSETS.BACKGROUND_TILE // The key of the texture to tile
+    );
+    // Set the origin to the top-left corner (0, 0) so it fills the screen correctly
+    this.background.setOrigin(0, 0);
+    // Optionally set depth to be absolutely sure it's behind everything
+    this.background.setDepth(-10); // A low number ensures it's in the back
+    this.background.setTileScale(0.5); // Set the scale of the tiles, adjust as needed
+
         // --- Create Groups ---
         // Using generic groups first, can specialize later if needed
         this.playerAnts = this.physics.add.group({ classType: Ant, runChildUpdate: true });
