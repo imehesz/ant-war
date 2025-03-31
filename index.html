@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, minimal-ui">
+    <title>Ant War</title>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+            background-color: #a0a0a0; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+        /* Basic styling for the game container */
+        #game-container {
+            border: 1px solid black;
+            overflow: hidden; /* Ensure canvas fits */
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script src="js/utils/constants.js"></script>
+    <script src="js/entities/Ant.js"></script>
+    <script src="js/entities/FighterAnt.js"></script>
+    <script src="js/entities/GathererAnt.js"></script>
+    <script src="js/entities/MegaFighterAnt.js"></script>
+    <script src="js/entities/Food.js"></script>
+    <script src="js/entities/Mound.js"></script>
+    <script src="js/entities/PowerupButton.js"></script>
+    <script src="js/scenes/PreloadScene.js"></script>
+    <script src="js/scenes/GameScene.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
