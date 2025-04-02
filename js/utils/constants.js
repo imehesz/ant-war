@@ -16,6 +16,7 @@ const MEGA_FIGHTER_SPEED = 35;
 const FIGHTER_DAMAGE = 10;
 const MEGA_FIGHTER_DAMAGE = 30;
 const SAND_BOMB_DAMAGE = 50;
+const SAND_TORNADO_SPEED = 150;
 
 const FOOD_RESOURCE_VALUE = 5;
 
@@ -27,8 +28,8 @@ const POWERUP_COSTS = {
 };
 
 const MAX_ANTS = {
-    GATHERER: 3, // Max purchasable (total can be higher with initial)
-    FIGHTER: 3,  // Max purchasable (total can be higher with initial/auto-spawn)
+    GATHERER: 10, // Max purchasable (total can be higher with initial)
+    FIGHTER: 10,  // Max purchasable (total can be higher with initial/auto-spawn)
 };
 
 // --- Asset Keys (replace with your actual filenames if you add real assets) ---
@@ -40,6 +41,7 @@ const ASSETS = {
     GATHERER_ANT_CARRYING: 'gatherer_ant_carrying',
     MEGA_FIGHTER_ANT: 'mega_fighter_ant',
     POWERUP_BG: 'powerup_bg',
-    BACKGROUND_TILE: 'background_tile'
+    BACKGROUND_TILE: 'background_tile',
+    SAND_TORNADO: 'sand_tornado',
     // Add sound keys later if needed
 };

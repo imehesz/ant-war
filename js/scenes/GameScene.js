@@ -39,6 +39,7 @@ class GameScene extends Phaser.Scene {
         this.playerAnts = this.physics.add.group({ classType: Ant, runChildUpdate: true });
         this.aiAnts = this.physics.add.group({ classType: Ant, runChildUpdate: true });
         this.foodSources = this.physics.add.group({ classType: Food, runChildUpdate: false }); // Food doesn't need update
+        this.projectiles = this.physics.add.group();
 
         // --- Create Mounds ---
         const centerX = GAME_WIDTH / 2;
@@ -121,6 +122,60 @@ class GameScene extends Phaser.Scene {
         }
     }
 
+
+    spawnSandTornado(sourceMound, targetMound) {
+        console.log(`Spawning sand tornado from ${sourceMound.isPlayer ? 'Player' : 'AI'} towards ${targetMound.isPlayer ? 'Player' : 'AI'}`);
+
+        // Determine spawn offset based on source
+        const spawnOffsetX = 0; // Can adjust if needed
+        const spawnOffsetY = sourceMound.isPlayer ? -30 : 30; // Slightly above player, below AI
+
+        const startX = sourceMound.x + spawnOffsetX;
+        const startY = sourceMound.y + spawnOffsetY;
+
+        // Create the tornado sprite using physics
+        const tornado = this.projectiles.create(startX, startY, ASSETS.SAND_TORNADO);
+        if (!tornado) {
+            console.error("Failed to create tornado sprite.");
+            return;
+        }
+
+        tornado.setOrigin(0.5, 0.5); // Adjust if needed for your sprite
+        // Optional: Add slight rotation or scaling effect later
+        // tornado.setRotation(Phaser.Math.DegToRad(Math.random() * 360));
+
+        // Set it moving towards the target mound
+        this.physics.moveToObject(tornado, targetMound, SAND_TORNADO_SPEED);
+
+        // --- Collision detection for the tornado hitting the target ---
+        // We add an overlap check specifically for THIS tornado instance and the target
+        const overlapCollider = this.physics.add.overlap(
+            tornado,
+            targetMound,
+            (tornadoSprite, mound) => { // Callback function on hit
+                console.log("Sand tornado reached target mound.");
+
+                // --- Actions on Hit ---
+                // 1. Destroy the tornado sprite
+                tornadoSprite.destroy();
+
+                // 2. Optional: Add impact effect (particles, screen shake)
+                // this.cameras.main.shake(100, 0.01);
+                // Add particle emitter here if desired
+
+                // 3. Remove the specific collider we created to avoid memory leaks
+                this.physics.world.removeCollider(overlapCollider);
+
+                // Note: The actual damage is applied instantly when the powerup
+                // is activated, the visual is just for show.
+            },
+            (tornadoSprite, mound) => {
+                // Process callback: Only allow collision if both objects are active
+                return tornadoSprite.active && mound.active;
+            },
+            this // Context
+        );
+    }
 
     spawnFood() {
     if (this.isGameOver) return;
@@ -263,6 +318,8 @@ class GameScene extends Phaser.Scene {
                     console.log("Player used Sand Bomb!");
                     this.aiMound.takeDamage(SAND_BOMB_DAMAGE);
                     // Add visual effect for bomb later
+                    this.spawnSandTornado(this.playerMound, this.aiMound);
+                    // Add sound effect here? this.sound.play('sand_bomb_sound');
                 } else {
                      console.log("Not enough resources for Sand Bomb");
                 }
@@ -444,6 +501,7 @@ class GameScene extends Phaser.Scene {
              if (ai.spendResources(POWERUP_COSTS.SAND_BOMB)) {
                  console.log("AI used Sand Bomb!");
                  this.playerMound.takeDamage(SAND_BOMB_DAMAGE);
+                 this.spawnSandTornado(this.aiMound, this.playerMound);
                  purchasedSomething = true;
              }
         }
