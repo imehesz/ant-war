@@ -48,6 +48,74 @@ class GameScene extends Phaser.Scene {
         this.playerMound.setEnemyMound(this.aiMound);
         this.aiMound.setEnemyMound(this.playerMound);
 
+        const uiLeftMargin = 15;
+        const uiVerticalPadding = 5;
+        const uiFontSize = '16px'; // Or adjust as needed
+        const uiLineHeight = 20; // Estimate height needed per line for vertical centering
+
+        // Calculate vertical position similar to powerup buttons
+        const uiElementCount = 2; // Health + Resources
+        const totalUiHeight = uiElementCount * uiLineHeight + (uiElementCount - 1) * uiVerticalPadding;
+        let uiCurrentY = (GAME_HEIGHT / 2) - (totalUiHeight / 2) + (uiLineHeight / 2); // Start Y for the center of the first line
+
+        const uiFixedX = uiLeftMargin; // X position for the left edge of the text
+
+        // Health Info Icon
+        const healthBgIconX = uiLeftMargin 
+        const healthBgIcon = this.add.image(
+            healthBgIconX - 10,
+            uiCurrentY - 50,
+            ASSETS.HEALTH_INFO
+        ).setOrigin(0, 0.5);
+        healthBgIcon.setDepth(8)
+
+        // Create Resource Icon Background
+        const healthIconX = uiLeftMargin;
+        const healthIcon = this.add.image(
+            healthIconX + 10,
+            uiCurrentY - 57, // Position vertically centered with the text line
+            ASSETS.HEART
+        ).setOrigin(0, 0.5); // Origin at left-center
+        healthIcon.setDepth(9);
+
+        // Create Health Text
+        this.playerMound.healthText = this.add.text(
+            uiFixedX,
+            uiCurrentY - 40,
+            stringUtils.leftFill(this.playerMound.health, 3, '0'), // Get initial value
+            { fontSize: uiFontSize, fill: '#000000', fontStyle: 'bold' } // White color
+        ).setOrigin(0, 0.5); // Origin at left-center
+        this.playerMound.healthText.setDepth(10); // Ensure it's above background
+
+        uiCurrentY += uiLineHeight + uiVerticalPadding; // Move down for next line
+
+        // Create Resource Icon Background
+        const resourceBgIconX = uiLeftMargin;
+        const resourceBgIcon = this.add.image(
+            resourceBgIconX - 10,
+            uiCurrentY, // Position vertically centered with the text line
+            ASSETS.FOOD_INFO
+        ).setOrigin(0, 0.5); // Origin at left-center
+        resourceBgIcon.setDepth(8); // Place it just behind the text (depth 10)
+
+
+        // Create Resource Icon Background
+        const resourceIconX = uiLeftMargin;
+        const resourceIcon = this.add.image(
+            resourceIconX + 12,
+            uiCurrentY - 7, // Position vertically centered with the text line
+            ASSETS.FOOD
+        ).setOrigin(0, 0.5); // Origin at left-center
+        resourceIcon.setDepth(9); // Place it just behind the text (depth 10)
+
+        // Create Resource Text
+        this.playerMound.resourceText = this.add.text(
+            uiFixedX - 2,
+            uiCurrentY + 7,
+            stringUtils.leftFill(this.playerMound.resources,4,"0"), // Get initial value
+            { fontSize: uiFontSize, fill: '#000000', fontStyle: 'bold' } // Gold color
+        ).setOrigin(0, 0.5); // Origin at left-center
+        this.playerMound.resourceText.setDepth(10); // Ensure it's above background
 
         // --- Initial Ants ---
         this.spawnInitialAnts();
@@ -211,6 +279,7 @@ class GameScene extends Phaser.Scene {
         this.foodSources.add(food);
         // console.log("Spawned food at:", x, y, " | Current count:", this.foodSources.countActive(true)); // Optional log
     } else {
+        console.log("FOOD TOO CLOSE TO EXISTING");
          // console.log("Skipped food spawn - too close to existing.");
          // Optionally, try spawning again immediately in the next frame if needed by the update loop?
          // For now, let the update loop or timer handle the next attempt.
@@ -587,6 +656,7 @@ class GameScene extends Phaser.Scene {
         if (this.foodSources && this.foodSources.countActive(true) === 0) {
             console.log("GUARANTEE_MIN_FOOD: Count is zero, attempting spawn.");
             this.spawnFood(); // Try to spawn a replacement immediately
+            this.spawnFood();
         }
 
         // Updates are handled by groups (runChildUpdate: true) and Mound update methods if needed.

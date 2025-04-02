@@ -7,7 +7,7 @@ const MOUND_START_HEALTH = 100;
 const MOUND_START_RESOURCES = 0;
 const FIGHTER_SPAWN_INTERVAL = 10000; // 10 seconds in ms
 const FOOD_SPAWN_INTERVAL = 5000;    // 5 seconds in ms
-const MAX_FOOD_SOURCES = 15;
+const MAX_FOOD_SOURCES = 25;
 
 const ANT_SPEED = 50;
 const GATHERER_SPEED = 40;
@@ -43,5 +43,9 @@ const ASSETS = {
     POWERUP_BG: 'powerup_bg',
     BACKGROUND_TILE: 'background_tile',
     SAND_TORNADO: 'sand_tornado',
+    SAND_TORNADO_ICON: 'sand_tornado_sm',
+    FOOD_INFO: 'food_info',
+    HEALTH_INFO: 'health_info',
+    HEART: 'heart',
     // Add sound keys later if needed
 };

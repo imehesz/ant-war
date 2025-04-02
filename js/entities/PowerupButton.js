@@ -11,10 +11,48 @@ class PowerupButton extends Phaser.GameObjects.Container {
         // Background sprite
         this.background = scene.add.sprite(0, 0, textureKey).setInteractive({ useHandCursor: true });
         this.background.setOrigin(0.5);
-        this.background.setTint(0x888888); // Start grayed out
+        this.background.setAlpha(0.01);
+
+        const gathererBgIconX = x
+        const gathererBgIcon = scene.add.image(
+            gathererBgIconX - 20,
+            y,
+            ASSETS.HEALTH_INFO
+        ).setOrigin(0, 0.5);
+        gathererBgIcon.setDepth(0)
+        
+        let powerIconAsset = ''
+        let powerIconX = x
+
+        switch( text ) {
+            case 'Gatherer':
+                    powerIconAsset = ASSETS.GATHERER_ANT_CARRYING
+                    powerIconX += 10
+                break;
+            case 'Fighter': 
+                    powerIconAsset = ASSETS.FIGHTER_ANT
+                    powerIconX += 10
+                break;
+            case 'Mega':
+                    powerIconAsset = ASSETS.MEGA_FIGHTER_ANT
+                    powerIconX += 5
+                break;
+            case 'Bomb': 
+                    powerIconAsset = ASSETS.SAND_TORNADO_ICON
+                    powerIconX += 10
+                break;
+        }
+
+        const powerIcon = scene.add.image(
+            powerIconX,
+            y,
+            powerIconAsset
+        ).setOrigin(0, 0.5);
+
+        powerIcon.setDepth(9);
 
         // Text label
-        this.label = scene.add.text(0, 0, `${text}\n(${cost})`, {
+        this.label = scene.add.text(0, 0, cost, {
             fontSize: '12px',
             fill: '#000',
             align: 'center',
@@ -57,7 +95,7 @@ class PowerupButton extends Phaser.GameObjects.Container {
         } else {
             this.isEnabled = false;
             this.background.setTint(0x888888); // Disable visual state (grayed out)
-             this.label.setAlpha(0.6);
+             this.label.setAlpha(0.3);
         }
     }
 }

@@ -24,8 +24,8 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
 
         // Health text (display only for player for now)
         if (this.isPlayer) {
-            this.healthText = scene.add.text(40, y + 30, `H: ${this.health}`, { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-            this.resourceText = scene.add.text(30, y + 50, `R: ${this.resources}`, { fontSize: '16px', fill: '#ffd700', fontStyle: 'bold' }).setOrigin(0.5);
+            // this.healthText = scene.add.text(40, y + 30, `H: ${this.health}`, { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            // this.resourceText = scene.add.text(30, y + 50, `R: ${this.resources}`, { fontSize: '16px', fill: '#ffd700', fontStyle: 'bold' }).setOrigin(0.5);
         } else {
              // Maybe add AI health display later for debugging/clarity if needed
              this.healthText = scene.add.text(x, y - 40, `Health: ${this.health}`, { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
@@ -98,7 +98,12 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
          console.log(`${this.isPlayer ? 'Player' : 'AI'} Mound health: ${this.health}`);
 
         if (this.healthText) {
-            this.healthText.setText(`Health: ${this.health}`);
+            if( this.isPlayer) {
+                // Only show health text for the player mound
+                this.healthText.setText(stringUtils.leftFill(this.health,3,'0'))
+            } else {
+                this.healthText.setText(`Health: ${this.health}`)
+            }
             // Add visual feedback (flash red?)
             this.scene.tweens.add({
                 targets: this,
@@ -117,7 +122,7 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
         this.resources += amount;
          console.log(`${this.isPlayer ? 'Player' : 'AI'} Mound resources: ${this.resources}`);
         if (this.resourceText) {
-            this.resourceText.setText(`R: ${this.resources}`);
+            this.resourceText.setText(stringUtils.leftFill(this.resources,4,'0'));
         }
          // Update powerup button states if this is the player mound
          if (this.isPlayer) {
@@ -129,7 +134,7 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
          if (this.resources >= amount) {
              this.resources -= amount;
               if (this.resourceText) {
-                 this.resourceText.setText(`R: ${this.resources}`);
+                 this.resourceText.setText(stringUtils.leftFill(this.resources, 4, '0'));
              }
              // Update powerup button states if this is the player mound
              if (this.isPlayer) {

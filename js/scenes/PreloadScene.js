@@ -29,7 +29,10 @@ class PreloadScene extends Phaser.Scene {
         this.load.image(ASSETS.POWERUP_BG, 'powerup_bg.png');
         this.load.image(ASSETS.BACKGROUND_TILE, 'bg-tile.png');
         this.load.image(ASSETS.SAND_TORNADO, 'sand_tornado.png');
-
+        this.load.image(ASSETS.FOOD_INFO, 'btn-bg-sm_short.png');
+        this.load.image(ASSETS.HEALTH_INFO, 'btn-bg-sm_short.png');
+        this.load.image(ASSETS.HEART, 'heart.png');
+        this.load.image(ASSETS.SAND_TORNADO_ICON, 'sand_tornado_sm.png');
 
         // Add loading progress bar (optional but good practice)
         let progressBar = this.add.graphics();
