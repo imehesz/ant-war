@@ -50,7 +50,7 @@ class PreloadScene extends Phaser.Scene {
             console.log("Asset loading complete.");
             progressBar.destroy();
             progressBox.destroy();
-            this.scene.start('GameScene');
+            this.scene.start('HomeScene');
         });
     }
 

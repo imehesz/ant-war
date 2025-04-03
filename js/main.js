@@ -12,12 +12,15 @@ const config = {
             gravity: { y: 0 } // Top-down game, no gravity needed
         }
     },
-    scene: [PreloadScene, GameScene], // Scenes array
+    scene: [PreloadScene, GameScene, HomeScene], // Scenes array
     scale: {
         mode: Phaser.Scale.FIT, // Fit the game within the container
         autoCenter: Phaser.Scale.CENTER_BOTH // Center horizontally and vertically
     },
-    pixelArt: true // Ensures pixel art isn't blurred by anti-aliasing
+    pixelArt: true, // Ensures pixel art isn't blurred by anti-aliasing
+    audio: {
+        disableWebAudio: false // Disable web audio for better compatibility
+    }
 };
 
 // Create the game instance
