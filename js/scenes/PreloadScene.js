@@ -33,6 +33,14 @@ class PreloadScene extends Phaser.Scene {
         this.load.image(ASSETS.HEALTH_INFO, 'btn-bg-sm_short.png');
         this.load.image(ASSETS.HEART, 'heart.png');
         this.load.image(ASSETS.SAND_TORNADO_ICON, 'sand_tornado_sm.png');
+        this.load.image(ASSETS.HOME_SCREEN_BG, 'ant-war-home-bg.png');
+
+        // audio
+        console.log("Loading audio...");
+        this.load.audio(ASSETS.SOUND_MUSIC_BACKGROUND, [ 'audio/sounds_bg-music-2.wav' ]);
+        this.load.audio(ASSETS.SOUND_SFX_GAME_START, [ 'audio/sounds_sfx-game-start.wav' ]);
+        this.load.audio(ASSETS.SOUND_SFX_GAME_LOST, [ 'audio/sounds_sfx-game-lost.wav' ]);
+        this.load.audio(ASSETS.SOUND_SFX_GAME_WON, [ 'audio/sounds_sfx-game-won.wav' ]);
 
         // Add loading progress bar (optional but good practice)
         let progressBar = this.add.graphics();

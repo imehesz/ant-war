@@ -42,10 +42,22 @@ const ASSETS = {
     MEGA_FIGHTER_ANT: 'mega_fighter_ant',
     POWERUP_BG: 'powerup_bg',
     BACKGROUND_TILE: 'background_tile',
+    HOME_SCREEN_BG: 'home_screen_bg',
     SAND_TORNADO: 'sand_tornado',
     SAND_TORNADO_ICON: 'sand_tornado_sm',
     FOOD_INFO: 'food_info',
     HEALTH_INFO: 'health_info',
     HEART: 'heart',
-    // Add sound keys later if needed
+
+    SOUND_MUSIC_BACKGROUND: 'music_background',
+    SOUND_SFX_SAND_BOMB: 'sfx_sand_bomb',
+    SOUND_SFX_FIGHTER_ATTACK: 'sfx_fighter_attack',
+    SOUND_SFX_FIGHTER_ADDED: 'sfx_fighter_added',
+    SOUND_SFX_MEGA_FIGHTER_ADDED: 'sfx_fighter_added',
+    SOUND_SFX_GATHERER_ADDED: 'sfx_gatherer_added',
+    SOUND_SFX_FOOD_DROPPED: 'sfx_food_dropped',
+    SOUND_SFX_FIGHTER_ADDED: 'sfx_fighter_added',
+    SOUND_SFX_GAME_WON: 'sfx_game_won',
+    SOUND_SFX_GAME_LOST: 'sfx_game_lost',
+    SOUND_SFX_GAME_START: 'sfx_game_start',
 };

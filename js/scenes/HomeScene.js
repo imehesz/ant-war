@@ -6,6 +6,7 @@ class HomeScene extends Phaser.Scene {
         this.instructionsPanel = null; // To hold the panel group/container
         this.musicVolumeText = null;
         this.sfxVolumeText = null;
+        this.background = null;
     }
 
     // No preload needed if assets are loaded in PreloadScene,
@@ -14,6 +15,20 @@ class HomeScene extends Phaser.Scene {
 
     create() {
         console.log("HomeScene create");
+        
+        this.background = this.add.tileSprite(
+            0,             
+            0,              // Start y coordinate
+            GAME_WIDTH,     // Width of the game screen
+            GAME_HEIGHT,    // Height of the game screen
+            ASSETS.HOME_SCREEN_BG // The key of the texture to tile
+        );
+        this.background.setOrigin(0, 0);
+        this.background.setDepth(-10); // A low number ensures it's in the back
+        this.background.setTint(0x777777); // Darker tint on click down
+        this.background.setTileScale(0.6);
+
+
         const centerX = this.cameras.main.width / 2;
         const centerY = this.cameras.main.height / 2;
 
@@ -23,10 +38,11 @@ class HomeScene extends Phaser.Scene {
             this.registry.set('musicVolume', 0); // Default 0%
         }
         if (this.registry.get('sfxVolume') === undefined) {
-            this.registry.set('sfxVolume', 50); // Default 50%
+            this.registry.set('sfxVolume', 0); // Default 50%
         }
 
         // --- Game Title ---
+        /*
         this.add.text(centerX, centerY - 250, 'Ant War', {
             fontSize: '48px',
             fill: '#ffff00', // Yellow
@@ -34,6 +50,9 @@ class HomeScene extends Phaser.Scene {
             stroke: '#000000',
             strokeThickness: 4
         }).setOrigin(0.5);
+        */
+
+        this.startBackgroundMusic();
 
         // --- Buttons ---
         const buttonYStart = centerY - 100;
@@ -99,6 +118,77 @@ class HomeScene extends Phaser.Scene {
 
     }
 
+    startBackgroundMusic() {
+        if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+            console.log("HomeScene: Music already playing.");
+            return; // Don't start if already running
+        }
+
+        try {
+            const musicVolume = this.registry.get('musicVolume') / 100;
+            console.log(`HomeScene: Attempting music start. Volume: ${musicVolume}`);
+
+            if (musicVolume <= 0) {
+                console.log("HomeScene: Music volume is 0, not starting.");
+                // Ensure any previous instance is stopped if volume was turned down
+                if (this.backgroundMusic) this.backgroundMusic.stop();
+                return;
+            }
+
+            // Add the sound instance if it doesn't exist or isn't valid
+            if (!this.backgroundMusic || !this.backgroundMusic.key) {
+                 this.backgroundMusic = this.sound.add(ASSETS.SOUND_MUSIC_BACKGROUND, {
+                     loop: true,
+                     volume: musicVolume
+                 });
+                 console.log("HomeScene: Created new music instance.");
+
+                  // --- DEBUG: Listen for playback events (crucial for HomeScene start) ---
+                 this.backgroundMusic.once('play', () => { console.log("HomeScene DEBUG: Music 'play' event fired!"); });
+                 this.backgroundMusic.once('locked', () => {
+                     console.error("HomeScene DEBUG: Music 'locked' event fired! Audio context needs interaction.");
+                     // Prompt user or wait for interaction
+                     this.input.once('pointerdown', () => {
+                         console.log("HomeScene DEBUG: Pointer down after lock, attempting resume...");
+                         if (this.sound.context.state === 'suspended') {
+                            this.sound.resumeAll();
+                         }
+                         // Important: Check volume AGAIN before playing after interaction
+                         const currentVol = this.registry.get('musicVolume') / 100;
+                         if(!this.backgroundMusic.isPlaying && currentVol > 0) {
+                              this.backgroundMusic.play();
+                         }
+                     }, this);
+                 });
+                 this.backgroundMusic.once('decodeerror', (s, e) => { console.error("HomeScene DEBUG: Music 'decodeerror'!", e); });
+                 // --- END DEBUG ---
+
+            } else {
+                 // Instance exists, just set volume
+                 this.backgroundMusic.setVolume(musicVolume);
+                 console.log("HomeScene: Using existing music instance.");
+            }
+
+
+            // Attempt to play
+            console.log("HomeScene: Calling backgroundMusic.play()...");
+             if (this.sound.context.state === 'suspended') {
+                 console.warn("HomeScene: Audio context suspended, play might be delayed until interaction.");
+                 // Relying on the 'locked' listener and pointerdown handler
+             }
+             // Only call play if it's not already playing (prevents issues if function is called again)
+             if (!this.backgroundMusic.isPlaying) {
+                 this.backgroundMusic.play();
+             } else {
+                 console.log("HomeScene: Music was already playing (perhaps resumed).");
+             }
+
+
+        } catch (error) {
+            console.error("HomeScene Error starting background music:", error);
+        }
+    }
+
     addHoverEffect(button, hoverTint = 0xcccccc) {
         button.on('pointerover', () => {
             button.setTint(hoverTint); // Apply tint on hover
@@ -114,20 +204,109 @@ class HomeScene extends Phaser.Scene {
           });
     }
 
-    adjustVolume(type, delta) {
-        const registryKey = type === 'music' ? 'musicVolume' : 'sfxVolume';
-        const textObject = type === 'music' ? this.musicVolumeText : this.sfxVolumeText;
+adjustVolume(type, delta) {
+    const registryKey = type === 'music' ? 'musicVolume' : 'sfxVolume';
+    const textObject = type === 'music' ? this.musicVolumeText : this.sfxVolumeText;
 
-        let currentVolume = this.registry.get(registryKey);
-        let newVolume = Phaser.Math.Clamp(currentVolume + delta, 0, 100); // Clamp between 0 and 100
+    let currentVolumePercent = this.registry.get(registryKey);
+    let newVolumePercent = Phaser.Math.Clamp(currentVolumePercent + delta, 0, 100);
+    this.registry.set(registryKey, newVolumePercent);
 
-        this.registry.set(registryKey, newVolume);
-        textObject.setText(`${newVolume}%`);
-
-        console.log(`${type.toUpperCase()} Volume set to: ${newVolume}%`);
-        // In a real implementation, you would also update the actual sound manager's volume here
-        // e.g., this.sound.setVolume(newVolume / 100); for global volume, or for specific sounds/music.
+    // Make sure textObject exists before trying to update it
+    if (textObject) {
+        textObject.setText(`${newVolumePercent}%`);
+    } else {
+        console.warn(`AdjustVolume: Text object for '${type}' not found.`);
     }
+
+    console.log(`${type.toUpperCase()} Volume set to: ${newVolumePercent}%`);
+
+    if (type === 'sfx') {
+        const sfxVolume = newVolumePercent / 100; // Convert to 0.0-1.0
+        const sfxKey = ASSETS.SOUND_SFX_GAME_START; // Key for the preview sound
+
+        console.log(`AdjustVolume DEBUG: Handling SFX. New volume: ${sfxVolume}`);
+
+        // Only play the sample sound if volume is audible
+        if (sfxVolume > 0) {
+            console.log(`AdjustVolume DEBUG: Attempting to play sample SFX '${sfxKey}'...`);
+
+            // Check audio context state
+            if (this.sound.context.state === 'running') {
+                try {
+                    // Check if the key exists in the cache before playing
+                    // Using the correct cache check: this.sound.cache.audio.has(key)
+                    if (this.cache.audio.has(sfxKey)) {
+                        // Play the sound effect using the new volume
+                        this.sound.play(sfxKey, { volume: sfxVolume });
+                        console.log(`AdjustVolume DEBUG: Played sample SFX '${sfxKey}' with volume ${sfxVolume}.`);
+                    } else {
+                         console.error(`AdjustVolume ERROR: SFX key '${sfxKey}' not found in cache! Check loading.`);
+                    }
+                } catch (error) {
+                    console.error(`AdjustVolume ERROR: Error playing sample SFX '${sfxKey}':`, error);
+                }
+            } else {
+                console.warn(`AdjustVolume DEBUG: SFX Context not running ('${this.sound.context.state}'). Sample SFX playback deferred/skipped.`);
+                // Since the user *is* interacting (clicking volume), we could try resuming,
+                // but play() usually handles this if context is just suspended.
+                // If it consistently fails here, resuming might be needed:
+                // if (this.sound.context.state === 'suspended') { this.sound.resumeAll(); }
+            }
+        } else {
+            console.log("AdjustVolume DEBUG: SFX Volume is 0, sample not played.");
+        }
+    }
+
+    // --- Handle MUSIC Volume Change ---
+    if (type === 'music') {
+        const newVolume = newVolumePercent / 100;
+        console.log(`AdjustVolume DEBUG: Handling music. New volume: ${newVolume}. Current instance:`, this.backgroundMusic); // Add log
+
+        // Case 1: Music instance DOES NOT exist (e.g., started at 0 volume)
+        if (!this.backgroundMusic || !this.backgroundMusic.key) { // More robust check
+            console.log("AdjustVolume DEBUG: No valid music instance exists.");
+            if (newVolume > 0) {
+                console.log("AdjustVolume DEBUG: Volume > 0, attempting to start music via startBackgroundMusic().");
+                // Try starting it now that volume is > 0
+                this.startBackgroundMusic(); // <<< CALL START FUNCTION
+            } else {
+                console.log("AdjustVolume DEBUG: Volume is 0, doing nothing (no instance).");
+            }
+        }
+        // Case 2: Music instance DOES exist
+        else {
+            console.log("AdjustVolume DEBUG: Music instance exists. Setting volume.");
+            this.backgroundMusic.setVolume(newVolume);
+
+            // Subcase 2a: Volume now > 0, but music wasn't playing (maybe paused/stopped/locked)
+            if (newVolume > 0 && !this.backgroundMusic.isPlaying) {
+                console.log("AdjustVolume DEBUG: Instance exists, volume > 0, not playing. Attempting play...");
+                if (this.sound.context.state === 'running') {
+                     console.log("AdjustVolume DEBUG: Context running, calling play().");
+                    this.backgroundMusic.play(); // Call play, it handles resuming if paused
+                } else {
+                    console.warn(`AdjustVolume DEBUG: Context not running ('${this.sound.context.state}'), cannot play yet. Need interaction.`);
+                    // Set up listener AGAIN just in case context got suspended
+                     this.input.once('pointerdown', () => {
+                          if (this.sound.context.state === 'suspended') this.sound.resumeAll();
+                          const currentVol = this.registry.get('musicVolume') / 100;
+                          if (this.backgroundMusic && !this.backgroundMusic.isPlaying && currentVol > 0) {
+                               this.backgroundMusic.play();
+                          }
+                     }, this);
+                }
+            }
+            // Subcase 2b: Volume turned down to 0, stop the music
+            else if (newVolume === 0 && this.backgroundMusic.isPlaying) {
+                console.log("AdjustVolume DEBUG: Volume is 0, stopping playing instance.");
+                this.backgroundMusic.stop();
+            } else {
+                 console.log("AdjustVolume DEBUG: Instance exists, volume set. No further play/stop action needed right now.");
+            }
+        }
+    }
+} // End adjustVolume
 
     showInstructions() {
         // Prevent creating multiple panels
@@ -136,7 +315,7 @@ class HomeScene extends Phaser.Scene {
         }
 
         const panelWidth = this.cameras.main.width * 0.8;
-        const panelHeight = this.cameras.main.height * 0.7;
+        const panelHeight = this.cameras.main.height * 0.9;
         const panelX = this.cameras.main.width / 2;
         const panelY = this.cameras.main.height / 2;
 
@@ -160,7 +339,7 @@ class HomeScene extends Phaser.Scene {
   - Sand Bomb: Cost ${POWERUP_COSTS.SAND_BOMB}. Instantly damages enemy mound (-${SAND_BOMB_DAMAGE} HP). Sends a visual tornado.\n
 - Protect your mound and manage your resources!`;
 
-        const textObject = this.add.text(panelX, panelY - panelHeight/2 - 20, instructionsText, {
+        const textObject = this.add.text(panelX, panelY - panelHeight/2 + 25, instructionsText, {
             fontSize: '16px',
             fill: '#fff',
             wordWrap: { width: panelWidth - 40 }, // Allow wrapping within panel
@@ -169,7 +348,7 @@ class HomeScene extends Phaser.Scene {
         }).setOrigin(0.5, 0).setDepth(101);
 
         // Close Button
-        const closeButton = this.add.text(panelX + panelWidth / 2 - 30, panelY - panelHeight / 2 - 50, 'X', {
+        const closeButton = this.add.text(panelX + panelWidth / 2 - 30, panelY - panelHeight / 2, 'X', {
             fontSize: '24px',
             fill: '#f00',
             backgroundColor: '#333',
@@ -193,4 +372,16 @@ class HomeScene extends Phaser.Scene {
             this.instructionsPanel = null;
         }
     }
+
+    shutdown() {
+        console.log("HomeScene shutdown.");
+        if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+             console.log("Stopping music due to HomeScene shutdown.");
+             this.backgroundMusic.stop();
+             // Set to null if GameScene shouldn't reuse the instance
+             // this.backgroundMusic = null;
+        }
+         // Clean up instructions panel if open
+        this.hideInstructions();
+     }
 }

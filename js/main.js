@@ -25,3 +25,8 @@ const config = {
 
 // Create the game instance
 const game = new Phaser.Game(config);
+
+// Optional: Initialize registry defaults here if preferred over doing it in HomeScene.create
+// This ensures they exist even before HomeScene runs its create method.
+game.registry.set('musicVolume', 0);
+game.registry.set('sfxVolume', 50);

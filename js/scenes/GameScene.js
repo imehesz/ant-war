@@ -12,13 +12,72 @@ class GameScene extends Phaser.Scene {
         this.foodSpawnTimer = null;
         this.gameOverText = null;
         this.isGameOver = false;
+        this.backgroundMusic = null;
     }
 
     create() {
         console.log("GameScene create");
         this.isGameOver = false;
 
-        
+        try {
+            this.sfxVolume = this.registry.get('sfxVolume') / 100; // Get 0.0-1.0
+            const musicVolume = this.registry.get('musicVolume') / 100;
+            const musicKey = ASSETS.MUSIC_BACKGROUND;
+
+            // Check if the sound manager has an instance with this key already playing
+            let existingMusic = this.sound.get(musicKey); // Check global sound manager
+            let isMusicAlreadyPlaying = existingMusic && existingMusic.isPlaying;
+
+            console.log(`GameScene: Checking music. Already Playing: ${isMusicAlreadyPlaying}. Volume Setting: ${musicVolume}`);
+
+            if (isMusicAlreadyPlaying) {
+                console.log("GameScene: Music already playing from previous scene.");
+                this.backgroundMusic = existingMusic; // Get reference
+                this.backgroundMusic.setVolume(musicVolume); // Apply current volume
+
+                // Stop it if volume is 0 now
+                if (musicVolume <= 0) {
+                    console.log("GameScene: Volume is 0, stopping existing music.");
+                    this.backgroundMusic.stop();
+                }
+            } else if (musicVolume > 0) {
+                // Not playing, but volume is up, so GameScene should start it
+                 console.log("GameScene: Music not playing, attempting to start...");
+                  // Ensure sound key exists (should have loaded)
+                 if (!this.sound.exists(musicKey)) {
+                     console.error(`GameScene ERROR: Sound key '${musicKey}' not loaded!`);
+                     return;
+                 }
+                this.backgroundMusic = this.sound.add(musicKey, { loop: true, volume: musicVolume });
+                 // Add necessary event listeners ('locked', 'play', 'error' etc.) if starting here
+                 this.backgroundMusic.once('locked', () => { /* ... handle lock ... */ });
+                 // Make sure context is running (interaction happened in HomeScene)
+                 if (this.sound.context.state === 'running') {
+                    this.backgroundMusic.play();
+                    console.log("GameScene: Started music playback.");
+                 } else {
+                     console.warn("GameScene: Audio context not running, cannot start music immediately.");
+                     // Set up listener similar to HomeScene to play on next interaction
+                      this.input.once('pointerdown', () => {
+                         if (this.sound.context.state === 'suspended') this.sound.resumeAll();
+                         if (!this.backgroundMusic.isPlaying && this.registry.get('musicVolume') > 0) {
+                             this.backgroundMusic.play();
+                         }
+                      }, this);
+                 }
+            } else {
+                console.log("GameScene: Music not playing and volume is 0.");
+            }
+
+        } catch (error) {
+            console.error("GameScene Error setting up background music:", error);
+        }
+
+        this.sound.play(ASSETS.SOUND_SFX_GAME_START, { volume: this.sfxVolume });
+        // --- End Music Handling --- 
+
+
+
     // Create a TileSprite that covers the entire game area
     // It will automatically repeat the ASSETS.BACKGROUND_TILE texture
     this.background = this.add.tileSprite(
@@ -389,6 +448,8 @@ class GameScene extends Phaser.Scene {
                     // Add visual effect for bomb later
                     this.spawnSandTornado(this.playerMound, this.aiMound);
                     // Add sound effect here? this.sound.play('sand_bomb_sound');
+                    // const sfxVolume = this.registry.get('sfxVolume') / 100; // Get 0.0-1.0
+                    // this.sound.play('sand_bomb_sound_key', { volume: sfxVolume });
                 } else {
                      console.log("Not enough resources for Sand Bomb");
                 }
@@ -623,6 +684,22 @@ class GameScene extends Phaser.Scene {
 
         console.log("GAME OVER:", message);
         this.isGameOver = true;
+
+        // Play sounde depending who won
+        if( message.indexOf("Player") > -1) {
+            this.sound.play(ASSETS.SOUND_SFX_GAME_WON, { volume: this.sfxVolume });
+        } else {
+            this.sound.play(ASSETS.SOUND_SFX_GAME_LOST, { volume: this.sfxVolume });
+        }
+
+        // Stop music
+        let currentMusic = this.sound.get(ASSETS.MUSIC_BACKGROUND); // Get potentially playing music
+        if (currentMusic && currentMusic.isPlaying) {
+             currentMusic.stop();
+             console.log("Background music stopped by Game Over.");
+        }
+        // Clear local reference if needed
+        this.backgroundMusic = null;
 
         // Stop timers
         if (this.fighterSpawnTimer) this.fighterSpawnTimer.remove();
