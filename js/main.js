@@ -1,32 +1,32 @@
 // js/main.js
 
 const config = {
-    type: Phaser.AUTO, // Use WebGL if available, otherwise Canvas
+    type: Phaser.AUTO,
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
-    parent: 'game-container', // ID of the div in index.html
+    parent: 'game-container',
     physics: {
         default: 'arcade',
         arcade: {
-            debug: false, // Set to true for collision boxes
-            gravity: { y: 0 } // Top-down game, no gravity needed
+            debug: false,
+            gravity: { y: 0 }
         }
     },
-    scene: [PreloadScene, GameScene, HomeScene], // Scenes array
+    scene: [PreloadScene, HomeScene, LevelSelectScene, GameScene, LevelCompleteScene, GameOverScene],
     scale: {
-        mode: Phaser.Scale.FIT, // Fit the game within the container
-        autoCenter: Phaser.Scale.CENTER_BOTH // Center horizontally and vertically
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
     },
-    pixelArt: true, // Ensures pixel art isn't blurred by anti-aliasing
+    pixelArt: true,
     audio: {
-        disableWebAudio: false // Disable web audio for better compatibility
+        disableWebAudio: false
     }
 };
 
 // Create the game instance
 const game = new Phaser.Game(config);
 
-// Optional: Initialize registry defaults here if preferred over doing it in HomeScene.create
-// This ensures they exist even before HomeScene runs its create method.
+// Initialize registry defaults
 game.registry.set('musicVolume', 0);
 game.registry.set('sfxVolume', 50);
+game.registry.set('maxUnlockedLevel', 1); // Start with only level 1 unlocked

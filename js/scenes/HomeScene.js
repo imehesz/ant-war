@@ -58,7 +58,7 @@ class HomeScene extends Phaser.Scene {
         const buttonYStart = centerY - 100;
         const buttonSpacing = 70;
 
-        // Start Game Button
+        // Start Game Button (goes to level select)
         const startButton = this.add.text(centerX, buttonYStart, 'Start Game', {
             fontSize: '32px',
             fill: '#0f0', // Green
@@ -67,9 +67,8 @@ class HomeScene extends Phaser.Scene {
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
         startButton.on('pointerdown', () => {
-             console.log("Starting GameScene...");
-             // Optional: Add a small fade out/in transition?
-             this.scene.start('GameScene');
+             console.log("Starting LevelSelectScene...");
+             this.scene.start('LevelSelectScene');
         });
         this.addHoverEffect(startButton);
 
@@ -328,7 +327,7 @@ adjustVolume(type, delta) {
         // Instruction Text (adjust content as needed)
         const instructionsText = `How to Play Ant War:\n
 - Goal: Destroy the enemy Ant Mound at the top.\n
-- Mounds start with ${MOUND_START_HEALTH} health.
+- Mounds start with 100 health (scales per level).
 - Your mound automatically spawns Fighter Ants every ${FIGHTER_SPAWN_INTERVAL / 1000} seconds.\n
 - Fighter Ants attack enemy ants and the enemy mound (-${FIGHTER_DAMAGE} HP).\n
 - Gatherer Ants collect food (green dots) and return it for +${FOOD_RESOURCE_VALUE} resources.\n

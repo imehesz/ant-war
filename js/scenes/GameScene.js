@@ -4,8 +4,8 @@ class GameScene extends Phaser.Scene {
         super('GameScene');
         this.playerMound = null;
         this.aiMound = null;
-        this.playerAnts = null; // Combined group for player ants
-        this.aiAnts = null;     // Combined group for AI ants
+        this.playerAnts = null;
+        this.aiAnts = null;
         this.foodSources = null;
         this.powerupButtons = [];
         this.fighterSpawnTimer = null;
@@ -13,234 +13,252 @@ class GameScene extends Phaser.Scene {
         this.gameOverText = null;
         this.isGameOver = false;
         this.backgroundMusic = null;
+        this.level = null; // Current level config
+        this.levelUI = null; // Level display text
     }
 
     create() {
         console.log("GameScene create");
         this.isGameOver = false;
 
+        // --- Load level configuration ---
+        this.level = this.registry.get('currentLevel') || LEVELS[0];
+        console.log(`Starting Level ${this.level.id}: ${this.level.name}`);
+
         try {
-            this.sfxVolume = this.registry.get('sfxVolume') / 100; // Get 0.0-1.0
+            this.sfxVolume = this.registry.get('sfxVolume') / 100;
             const musicVolume = this.registry.get('musicVolume') / 100;
             const musicKey = ASSETS.MUSIC_BACKGROUND;
 
-            // Check if the sound manager has an instance with this key already playing
-            let existingMusic = this.sound.get(musicKey); // Check global sound manager
+            let existingMusic = this.sound.get(musicKey);
             let isMusicAlreadyPlaying = existingMusic && existingMusic.isPlaying;
 
-            console.log(`GameScene: Checking music. Already Playing: ${isMusicAlreadyPlaying}. Volume Setting: ${musicVolume}`);
-
             if (isMusicAlreadyPlaying) {
-                console.log("GameScene: Music already playing from previous scene.");
-                this.backgroundMusic = existingMusic; // Get reference
-                this.backgroundMusic.setVolume(musicVolume); // Apply current volume
-
-                // Stop it if volume is 0 now
+                this.backgroundMusic = existingMusic;
+                this.backgroundMusic.setVolume(musicVolume);
                 if (musicVolume <= 0) {
-                    console.log("GameScene: Volume is 0, stopping existing music.");
                     this.backgroundMusic.stop();
                 }
             } else if (musicVolume > 0) {
-                // Not playing, but volume is up, so GameScene should start it
-                 console.log("GameScene: Music not playing, attempting to start...");
-                  // Ensure sound key exists (should have loaded)
-                 if (!this.sound.exists(musicKey)) {
-                     console.error(`GameScene ERROR: Sound key '${musicKey}' not loaded!`);
-                     return;
-                 }
+                if (!this.sound.exists(musicKey)) {
+                    console.error(`GameScene ERROR: Sound key '${musicKey}' not loaded!`);
+                    return;
+                }
                 this.backgroundMusic = this.sound.add(musicKey, { loop: true, volume: musicVolume });
-                 // Add necessary event listeners ('locked', 'play', 'error' etc.) if starting here
-                 this.backgroundMusic.once('locked', () => { /* ... handle lock ... */ });
-                 // Make sure context is running (interaction happened in HomeScene)
-                 if (this.sound.context.state === 'running') {
+                this.backgroundMusic.once('locked', () => { });
+                if (this.sound.context.state === 'running') {
                     this.backgroundMusic.play();
-                    console.log("GameScene: Started music playback.");
-                 } else {
-                     console.warn("GameScene: Audio context not running, cannot start music immediately.");
-                     // Set up listener similar to HomeScene to play on next interaction
-                      this.input.once('pointerdown', () => {
-                         if (this.sound.context.state === 'suspended') this.sound.resumeAll();
-                         if (!this.backgroundMusic.isPlaying && this.registry.get('musicVolume') > 0) {
-                             this.backgroundMusic.play();
-                         }
-                      }, this);
-                 }
-            } else {
-                console.log("GameScene: Music not playing and volume is 0.");
+                } else {
+                    this.input.once('pointerdown', () => {
+                        if (this.sound.context.state === 'suspended') this.sound.resumeAll();
+                        if (!this.backgroundMusic.isPlaying && this.registry.get('musicVolume') > 0) {
+                            this.backgroundMusic.play();
+                        }
+                    }, this);
+                }
             }
-
         } catch (error) {
             console.error("GameScene Error setting up background music:", error);
         }
 
         this.sound.play(ASSETS.SOUND_SFX_GAME_START, { volume: this.sfxVolume });
-        // --- End Music Handling --- 
 
-
-
-    // Create a TileSprite that covers the entire game area
-    // It will automatically repeat the ASSETS.BACKGROUND_TILE texture
-    this.background = this.add.tileSprite(
-        0,              // Start x coordinate
-        0,              // Start y coordinate
-        GAME_WIDTH,     // Width of the game screen
-        GAME_HEIGHT,    // Height of the game screen
-        ASSETS.BACKGROUND_TILE // The key of the texture to tile
-    );
-    // Set the origin to the top-left corner (0, 0) so it fills the screen correctly
-    this.background.setOrigin(0, 0);
-    // Optionally set depth to be absolutely sure it's behind everything
-    this.background.setDepth(-10); // A low number ensures it's in the back
-    this.background.setTileScale(0.5); // Set the scale of the tiles, adjust as needed
+        // --- Background ---
+        this.background = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, ASSETS.BACKGROUND_TILE);
+        this.background.setOrigin(0, 0);
+        this.background.setDepth(-10);
+        this.background.setTileScale(0.5);
 
         // --- Create Groups ---
-        // Using generic groups first, can specialize later if needed
         this.playerAnts = this.physics.add.group({ classType: Ant, runChildUpdate: true });
         this.aiAnts = this.physics.add.group({ classType: Ant, runChildUpdate: true });
-        this.foodSources = this.physics.add.group({ classType: Food, runChildUpdate: false }); // Food doesn't need update
+        this.foodSources = this.physics.add.group({ classType: Food, runChildUpdate: false });
         this.projectiles = this.physics.add.group();
 
-        // --- Create Mounds ---
+        // --- Create Mounds (using level-specific health) ---
         const centerX = GAME_WIDTH / 2;
-        this.playerMound = new Mound(this, centerX, GAME_HEIGHT - 70, ASSETS.MOUND, true, null);
-        this.aiMound = new Mound(this, centerX, 70, ASSETS.MOUND, false, null);
+        this.playerMound = new Mound(this, centerX, GAME_HEIGHT - 70, ASSETS.MOUND, true, null, this.level.playerMoundHealth);
+        this.aiMound = new Mound(this, centerX, 70, ASSETS.MOUND, false, null, this.level.aiMoundHealth);
         this.playerMound.setEnemyMound(this.aiMound);
         this.aiMound.setEnemyMound(this.playerMound);
 
-        const uiLeftMargin = 15;
-        const uiVerticalPadding = 5;
-        const uiFontSize = '16px'; // Or adjust as needed
-        const uiLineHeight = 20; // Estimate height needed per line for vertical centering
+        // --- Give AI starting resources ---
+        if (this.level.aiStartResources > 0) {
+            this.aiMound.resources = this.level.aiStartResources;
+        }
 
-        // Calculate vertical position similar to powerup buttons
-        const uiElementCount = 2; // Health + Resources
-        const totalUiHeight = uiElementCount * uiLineHeight + (uiElementCount - 1) * uiVerticalPadding;
-        let uiCurrentY = (GAME_HEIGHT / 2) - (totalUiHeight / 2) + (uiLineHeight / 2); // Start Y for the center of the first line
+        // --- Level Banner (shows for 3 seconds then fades) ---
+        this.showLevelBanner();
 
-        const uiFixedX = uiLeftMargin; // X position for the left edge of the text
+        // --- UI Setup ---
+        this.createUI();
 
-        // Health Info Icon
-        const healthBgIconX = uiLeftMargin 
-        const healthBgIcon = this.add.image(
-            healthBgIconX - 10,
-            uiCurrentY - 50,
-            ASSETS.HEALTH_INFO
-        ).setOrigin(0, 0.5);
-        healthBgIcon.setDepth(8)
-
-        // Create Resource Icon Background
-        const healthIconX = uiLeftMargin;
-        const healthIcon = this.add.image(
-            healthIconX + 10,
-            uiCurrentY - 57, // Position vertically centered with the text line
-            ASSETS.HEART
-        ).setOrigin(0, 0.5); // Origin at left-center
-        healthIcon.setDepth(9);
-
-        // Create Health Text
-        this.playerMound.healthText = this.add.text(
-            uiFixedX,
-            uiCurrentY - 40,
-            stringUtils.leftFill(this.playerMound.health, 3, '0'), // Get initial value
-            { fontSize: uiFontSize, fill: '#000000', fontStyle: 'bold' } // White color
-        ).setOrigin(0, 0.5); // Origin at left-center
-        this.playerMound.healthText.setDepth(10); // Ensure it's above background
-
-        uiCurrentY += uiLineHeight + uiVerticalPadding; // Move down for next line
-
-        // Create Resource Icon Background
-        const resourceBgIconX = uiLeftMargin;
-        const resourceBgIcon = this.add.image(
-            resourceBgIconX - 10,
-            uiCurrentY, // Position vertically centered with the text line
-            ASSETS.FOOD_INFO
-        ).setOrigin(0, 0.5); // Origin at left-center
-        resourceBgIcon.setDepth(8); // Place it just behind the text (depth 10)
-
-
-        // Create Resource Icon Background
-        const resourceIconX = uiLeftMargin;
-        const resourceIcon = this.add.image(
-            resourceIconX + 12,
-            uiCurrentY - 7, // Position vertically centered with the text line
-            ASSETS.FOOD
-        ).setOrigin(0, 0.5); // Origin at left-center
-        resourceIcon.setDepth(9); // Place it just behind the text (depth 10)
-
-        // Create Resource Text
-        this.playerMound.resourceText = this.add.text(
-            uiFixedX - 2,
-            uiCurrentY + 7,
-            stringUtils.leftFill(this.playerMound.resources,4,"0"), // Get initial value
-            { fontSize: uiFontSize, fill: '#000000', fontStyle: 'bold' } // Gold color
-        ).setOrigin(0, 0.5); // Origin at left-center
-        this.playerMound.resourceText.setDepth(10); // Ensure it's above background
-
-        // --- Initial Ants ---
+        // --- Initial Ants (level-specific) ---
         this.spawnInitialAnts();
 
-        // --- Initial Food ---
-        this.spawnInitialFood(5); // Start with 5 food items
+        // --- Initial Food (level-specific) ---
+        this.spawnInitialFood(this.level.initialFoodCount);
 
-        // --- Timers ---
-        // Auto-spawn fighter ants
+        // --- Timers (using level-specific intervals) ---
         this.fighterSpawnTimer = this.time.addEvent({
-            delay: FIGHTER_SPAWN_INTERVAL,
+            delay: this.level.fighterSpawnInterval,
             callback: this.autoSpawnFighters,
             callbackScope: this,
             loop: true
         });
-        // Spawn food periodically
+
         this.foodSpawnTimer = this.time.addEvent({
-            delay: FOOD_SPAWN_INTERVAL,
+            delay: this.level.foodSpawnInterval,
             callback: this.spawnFood,
             callbackScope: this,
             loop: true
         });
 
-        // --- UI ---
+        // --- Powerup Buttons ---
         this.createPowerupButtons();
 
         // --- Collisions ---
         this.setupCollisions();
 
-        // --- AI Timer ---
+        // --- AI Timer (using level-specific interval) ---
         this.aiTimer = this.time.addEvent({
-            delay: 3000, // AI makes decisions every 3 seconds
+            delay: this.level.aiDecisionInterval,
             callback: this.runAI,
             callbackScope: this,
             loop: true
         });
 
-         // --- Game Over Text (Hidden initially) ---
-         this.gameOverText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '', {
+        // --- Game Over Text (hidden) ---
+        this.gameOverText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '', {
             fontSize: '48px', fill: '#ff0000', fontStyle: 'bold', backgroundColor: '#000000'
         }).setOrigin(0.5).setDepth(100).setVisible(false);
 
         console.log("GameScene creation complete.");
-         this.updatePowerupButtons(); // Initial check
+        this.updatePowerupButtons();
     }
 
-     spawnInitialAnts() {
-         console.log("Spawning initial ants...");
-         // Player
-         let pFighter1 = this.playerMound.spawnAnt(FighterAnt);
-         let pFighter2 = this.playerMound.spawnAnt(FighterAnt);
-         let pGatherer = this.playerMound.spawnAnt(GathererAnt);
-         if (pFighter1) this.playerAnts.add(pFighter1);
-         if (pFighter2) this.playerAnts.add(pFighter2);
-         if (pGatherer) this.playerAnts.add(pGatherer);
+    showLevelBanner() {
+        const centerX = GAME_WIDTH / 2;
+        const bannerY = GAME_HEIGHT / 2 - 40;
 
-         // AI
-         let aFighter1 = this.aiMound.spawnAnt(FighterAnt);
-         let aFighter2 = this.aiMound.spawnAnt(FighterAnt);
-         let aGatherer = this.aiMound.spawnAnt(GathererAnt);
-          if (aFighter1) this.aiAnts.add(aFighter1);
-          if (aFighter2) this.aiAnts.add(aFighter2);
-          if (aGatherer) this.aiAnts.add(aGatherer);
-          console.log("Initial ants spawned.");
-     }
+        // Semi-transparent overlay
+        const overlay = this.add.graphics();
+        overlay.fillStyle(0x000000, 0.7);
+        overlay.fillRect(0, bannerY - 50, GAME_WIDTH, 100);
+        overlay.setDepth(50);
 
+        const levelText = this.add.text(centerX, bannerY - 15, `Level ${this.level.id}`, {
+            fontSize: '18px',
+            fill: '#ffcc00',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(51);
+
+        const nameText = this.add.text(centerX, bannerY + 10, this.level.name, {
+            fontSize: '26px',
+            fill: '#ffffff',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 2
+        }).setOrigin(0.5).setDepth(51);
+
+        const descText = this.add.text(centerX, bannerY + 35, this.level.description, {
+            fontSize: '12px',
+            fill: '#cccccc',
+            fontStyle: 'italic',
+            wordWrap: { width: GAME_WIDTH - 40 },
+            align: 'center'
+        }).setOrigin(0.5).setDepth(51);
+
+        // Fade out after 3 seconds
+        this.time.delayedCall(3000, () => {
+            this.tweens.add({
+                targets: [overlay, levelText, nameText, descText],
+                alpha: 0,
+                duration: 800,
+                onComplete: () => {
+                    overlay.destroy();
+                    levelText.destroy();
+                    nameText.destroy();
+                    descText.destroy();
+                }
+            });
+        });
+    }
+
+    createUI() {
+        const uiLeftMargin = 15;
+        const uiVerticalPadding = 5;
+        const uiFontSize = '16px';
+        const uiLineHeight = 20;
+        const uiElementCount = 2;
+        const totalUiHeight = uiElementCount * uiLineHeight + (uiElementCount - 1) * uiVerticalPadding;
+        let uiCurrentY = (GAME_HEIGHT / 2) - (totalUiHeight / 2) + (uiLineHeight / 2);
+        const uiFixedX = uiLeftMargin;
+
+        // Health Info Icon
+        const healthBgIconX = uiLeftMargin;
+        const healthBgIcon = this.add.image(healthBgIconX - 10, uiCurrentY - 50, ASSETS.HEALTH_INFO).setOrigin(0, 0.5);
+        healthBgIcon.setDepth(8);
+
+        const healthIconX = uiLeftMargin;
+        const healthIcon = this.add.image(healthIconX + 10, uiCurrentY - 57, ASSETS.HEART).setOrigin(0, 0.5);
+        healthIcon.setDepth(9);
+
+        this.playerMound.healthText = this.add.text(
+            uiFixedX, uiCurrentY - 40,
+            stringUtils.leftFill(this.playerMound.health, 3, '0'),
+            { fontSize: uiFontSize, fill: '#000000', fontStyle: 'bold' }
+        ).setOrigin(0, 0.5);
+        this.playerMound.healthText.setDepth(10);
+
+        uiCurrentY += uiLineHeight + uiVerticalPadding;
+
+        const resourceBgIconX = uiLeftMargin;
+        const resourceBgIcon = this.add.image(resourceBgIconX - 10, uiCurrentY, ASSETS.FOOD_INFO).setOrigin(0, 0.5);
+        resourceBgIcon.setDepth(8);
+
+        const resourceIconX = uiLeftMargin;
+        const resourceIcon = this.add.image(resourceIconX + 12, uiCurrentY - 7, ASSETS.FOOD).setOrigin(0, 0.5);
+        resourceIcon.setDepth(9);
+
+        this.playerMound.resourceText = this.add.text(
+            uiFixedX - 2, uiCurrentY + 7,
+            stringUtils.leftFill(this.playerMound.resources, 4, "0"),
+            { fontSize: uiFontSize, fill: '#000000', fontStyle: 'bold' }
+        ).setOrigin(0, 0.5);
+        this.playerMound.resourceText.setDepth(10);
+    }
+
+    spawnInitialAnts() {
+        console.log("Spawning initial ants...");
+        const lv = this.level;
+
+        // Player ants
+        for (let i = 0; i < lv.playerStartFighters; i++) {
+            let ant = this.playerMound.spawnAnt(FighterAnt);
+            if (ant) this.playerAnts.add(ant);
+        }
+        for (let i = 0; i < lv.playerStartGatherers; i++) {
+            let ant = this.playerMound.spawnAnt(GathererAnt);
+            if (ant) this.playerAnts.add(ant);
+        }
+
+        // AI ants
+        for (let i = 0; i < lv.aiStartFighters; i++) {
+            let ant = this.aiMound.spawnAnt(FighterAnt);
+            if (ant) this.aiAnts.add(ant);
+        }
+        for (let i = 0; i < lv.aiStartGatherers; i++) {
+            let ant = this.aiMound.spawnAnt(GathererAnt);
+            if (ant) this.aiAnts.add(ant);
+        }
+        for (let i = 0; i < lv.aiStartMegas; i++) {
+            let ant = this.aiMound.spawnAnt(MegaFighterAnt);
+            if (ant) this.aiAnts.add(ant);
+        }
+
+        console.log("Initial ants spawned.");
+    }
 
     spawnInitialFood(count) {
         console.log(`Spawning ${count} initial food items...`);
@@ -249,160 +267,101 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-
     spawnSandTornado(sourceMound, targetMound) {
-        console.log(`Spawning sand tornado from ${sourceMound.isPlayer ? 'Player' : 'AI'} towards ${targetMound.isPlayer ? 'Player' : 'AI'}`);
-
-        // Determine spawn offset based on source
-        const spawnOffsetX = 0; // Can adjust if needed
-        const spawnOffsetY = sourceMound.isPlayer ? -30 : 30; // Slightly above player, below AI
-
-        const startX = sourceMound.x + spawnOffsetX;
+        console.log(`Spawning sand tornado from ${sourceMound.isPlayer ? 'Player' : 'AI'}`);
+        const spawnOffsetY = sourceMound.isPlayer ? -30 : 30;
+        const startX = sourceMound.x;
         const startY = sourceMound.y + spawnOffsetY;
 
-        // Create the tornado sprite using physics
         const tornado = this.projectiles.create(startX, startY, ASSETS.SAND_TORNADO);
-        if (!tornado) {
-            console.error("Failed to create tornado sprite.");
-            return;
-        }
+        if (!tornado) return;
 
-        tornado.setOrigin(0.5, 0.5); // Adjust if needed for your sprite
-        // Optional: Add slight rotation or scaling effect later
-        // tornado.setRotation(Phaser.Math.DegToRad(Math.random() * 360));
-
-        // Set it moving towards the target mound
+        tornado.setOrigin(0.5, 0.5);
         this.physics.moveToObject(tornado, targetMound, SAND_TORNADO_SPEED);
 
-        // --- Collision detection for the tornado hitting the target ---
-        // We add an overlap check specifically for THIS tornado instance and the target
         const overlapCollider = this.physics.add.overlap(
-            tornado,
-            targetMound,
-            (tornadoSprite, mound) => { // Callback function on hit
-                console.log("Sand tornado reached target mound.");
-
-                // --- Actions on Hit ---
-                // 1. Destroy the tornado sprite
-                tornadoSprite.destroy();
-
-                // 2. Optional: Add impact effect (particles, screen shake)
-                // this.cameras.main.shake(100, 0.01);
-                // Add particle emitter here if desired
-
-                // 3. Remove the specific collider we created to avoid memory leaks
-                this.physics.world.removeCollider(overlapCollider);
-
-                // Note: The actual damage is applied instantly when the powerup
-                // is activated, the visual is just for show.
-            },
+            tornado, targetMound,
             (tornadoSprite, mound) => {
-                // Process callback: Only allow collision if both objects are active
-                return tornadoSprite.active && mound.active;
+                tornadoSprite.destroy();
+                this.physics.world.removeCollider(overlapCollider);
             },
-            this // Context
+            (tornadoSprite, mound) => tornadoSprite.active && mound.active,
+            this
         );
     }
 
     spawnFood() {
-    if (this.isGameOver) return;
+        if (this.isGameOver) return;
 
-    const currentFoodCount = this.foodSources.countActive(true);
-
-    // Prevent over-spawning ONLY if the current count is already >= MAX
-    // AND the count is greater than zero (meaning we aren't trying to fulfill the minimum=1 requirement)
-    if (currentFoodCount >= MAX_FOOD_SOURCES && currentFoodCount > 0) {
-        // console.log("Max food sources reached, skipping spawn."); // Optional log
-        return;
-    }
-
-    // Spawn food away from mounds
-    const paddingY = GAME_HEIGHT * 0.20;
-    const paddingX = 50;
-    const x = Phaser.Math.Between(paddingX, GAME_WIDTH - paddingX);
-    const y = Phaser.Math.Between(paddingY, GAME_HEIGHT - paddingY);
-
-    // Check proximity (this logic remains good)
-    let tooClose = false;
-    this.foodSources.getChildren().forEach(existingFood => {
-        if (existingFood.active) {
-            const dist = Phaser.Math.Distance.Between(x, y, existingFood.x, existingFood.y);
-            if (dist < 20) {
-                tooClose = true;
-            }
+        const currentFoodCount = this.foodSources.countActive(true);
+        if (currentFoodCount >= this.level.maxFoodSources && currentFoodCount > 0) {
+            return;
         }
-    });
 
-    if (!tooClose) {
-        const food = new Food(this, x, y);
-        this.foodSources.add(food);
-        // console.log("Spawned food at:", x, y, " | Current count:", this.foodSources.countActive(true)); // Optional log
-    } else {
-        console.log("FOOD TOO CLOSE TO EXISTING");
-         // console.log("Skipped food spawn - too close to existing.");
-         // Optionally, try spawning again immediately in the next frame if needed by the update loop?
-         // For now, let the update loop or timer handle the next attempt.
-    }
+        const paddingY = GAME_HEIGHT * 0.20;
+        const paddingX = 50;
+        const x = Phaser.Math.Between(paddingX, GAME_WIDTH - paddingX);
+        const y = Phaser.Math.Between(paddingY, GAME_HEIGHT - paddingY);
+
+        let tooClose = false;
+        this.foodSources.getChildren().forEach(existingFood => {
+            if (existingFood.active) {
+                const dist = Phaser.Math.Distance.Between(x, y, existingFood.x, existingFood.y);
+                if (dist < 20) tooClose = true;
+            }
+        });
+
+        if (!tooClose) {
+            const food = new Food(this, x, y);
+            this.foodSources.add(food);
+        }
     }
 
     autoSpawnFighters() {
         if (this.isGameOver) return;
-        console.log("Auto-spawning fighters...");
-         let pAnt = this.playerMound.spawnAnt(FighterAnt);
-         let aAnt = this.aiMound.spawnAnt(FighterAnt);
-         if (pAnt) this.playerAnts.add(pAnt);
-         if (aAnt) this.aiAnts.add(aAnt);
-    }
+        if (!this.level.aiFighterAutoSpawn) return;
 
-    // js/scenes/GameScene.js
+        let pAnt = this.playerMound.spawnAnt(FighterAnt);
+        let aAnt = this.aiMound.spawnAnt(FighterAnt);
+        if (pAnt) this.playerAnts.add(pAnt);
+        if (aAnt) this.aiAnts.add(aAnt);
+    }
 
     createPowerupButtons() {
-    // --- Configuration for Vertical Layout on the Right ---
-    const buttonWidth = 60; // Approximate width of your powerup_bg asset
-    const buttonHeight = 40; // Approximate height of your powerup_bg asset
-    const verticalPadding = 15; // Pixels between buttons vertically
-    const rightMargin = 10; // Pixels from the right edge of the screen
+        const buttonWidth = 60;
+        const buttonHeight = 40;
+        const verticalPadding = 15;
+        const rightMargin = 10;
+        const buttonFixedX = GAME_WIDTH - (buttonWidth / 2) - rightMargin;
 
-    const buttonFixedX = GAME_WIDTH - (buttonWidth / 2) - rightMargin; // X position for the center of the buttons
+        const totalButtonHeight = 4 * buttonHeight;
+        const totalSpacingHeight = 3 * verticalPadding;
+        const totalGroupHeight = totalButtonHeight + totalSpacingHeight;
+        let currentY = (GAME_HEIGHT / 2) - (totalGroupHeight / 2) + (buttonHeight / 2);
 
-    const totalButtonHeight = (this.powerupButtons.length === 0 ? 4 : this.powerupButtons.length) * buttonHeight; // Estimate based on 4 buttons initially
-    const totalSpacingHeight = (this.powerupButtons.length === 0 ? 3 : this.powerupButtons.length - 1) * verticalPadding; // Estimate based on 4 buttons initially
-    const totalGroupHeight = totalButtonHeight + totalSpacingHeight;
+        this.powerupButtons = [];
 
-    // Calculate starting Y to center the group vertically
-    let currentY = (GAME_HEIGHT / 2) - (totalGroupHeight / 2) + (buttonHeight / 2); // Start Y for the center of the *first* button
+        this.powerupButtons.push(new PowerupButton(this, buttonFixedX, currentY, 'Gatherer', POWERUP_COSTS.GATHERER, ASSETS.POWERUP_BG, () => this.buyPowerup('GATHERER')));
+        currentY += buttonHeight + verticalPadding;
 
+        this.powerupButtons.push(new PowerupButton(this, buttonFixedX, currentY, 'Fighter', POWERUP_COSTS.FIGHTER, ASSETS.POWERUP_BG, () => this.buyPowerup('FIGHTER')));
+        currentY += buttonHeight + verticalPadding;
 
-    // --- Create Buttons Vertically ---
-    this.powerupButtons = []; // Clear any previous buttons if this function were called again
+        this.powerupButtons.push(new PowerupButton(this, buttonFixedX, currentY, 'Mega', POWERUP_COSTS.MEGA_FIGHTER, ASSETS.POWERUP_BG, () => this.buyPowerup('MEGA_FIGHTER')));
+        currentY += buttonHeight + verticalPadding;
 
-    // Gatherer Button
-    this.powerupButtons.push(new PowerupButton(this, buttonFixedX, currentY, 'Gatherer', POWERUP_COSTS.GATHERER, ASSETS.POWERUP_BG, () => this.buyPowerup('GATHERER')));
-    currentY += buttonHeight + verticalPadding; // Move down for the next button
+        this.powerupButtons.push(new PowerupButton(this, buttonFixedX, currentY, 'Bomb', POWERUP_COSTS.SAND_BOMB, ASSETS.POWERUP_BG, () => this.buyPowerup('SAND_BOMB')));
 
-    // Fighter Button
-    this.powerupButtons.push(new PowerupButton(this, buttonFixedX, currentY, 'Fighter', POWERUP_COSTS.FIGHTER, ASSETS.POWERUP_BG, () => this.buyPowerup('FIGHTER')));
-    currentY += buttonHeight + verticalPadding; // Move down
-
-    // Mega Button
-    this.powerupButtons.push(new PowerupButton(this, buttonFixedX, currentY, 'Mega', POWERUP_COSTS.MEGA_FIGHTER, ASSETS.POWERUP_BG, () => this.buyPowerup('MEGA_FIGHTER')));
-    currentY += buttonHeight + verticalPadding; // Move down
-
-    // Bomb Button
-    this.powerupButtons.push(new PowerupButton(this, buttonFixedX, currentY, 'Bomb', POWERUP_COSTS.SAND_BOMB, ASSETS.POWERUP_BG, () => this.buyPowerup('SAND_BOMB')));
-    // No increment needed after the last button
-
-    // Ensure they are enabled/disabled correctly from the start
-    this.updatePowerupButtons();
+        this.updatePowerupButtons();
     }
 
-     updatePowerupButtons() {
+    updatePowerupButtons() {
         if (!this.playerMound || this.isGameOver) return;
-         const resources = this.playerMound.resources;
-         const limits = {
-             purchasedGatherers: this.playerMound.antCounts.purchasedGatherers,
-             purchasedFighters: this.playerMound.antCounts.purchasedFighters
-         };
+        const resources = this.playerMound.resources;
+        const limits = {
+            purchasedGatherers: this.playerMound.antCounts.purchasedGatherers,
+            purchasedFighters: this.playerMound.antCounts.purchasedFighters
+        };
         this.powerupButtons.forEach(button => button.updateEnabled(resources, limits));
     }
 
@@ -412,293 +371,180 @@ class GameScene extends Phaser.Scene {
         console.log(`Player attempting to buy: ${type}`);
         let cost = 0;
         let antClass = null;
-        let purchased = false; // Flag to track if it's a purchasable ant type for limits
+        let purchased = false;
 
         switch (type) {
             case 'GATHERER':
-                 if (this.playerMound.antCounts.purchasedGatherers < MAX_ANTS.GATHERER) {
-                     cost = POWERUP_COSTS.GATHERER;
-                     antClass = GathererAnt;
-                     purchased = true;
-                 } else {
-                      console.log("Gatherer limit reached.");
-                      return; // Don't proceed if limit hit
-                 }
+                if (this.playerMound.antCounts.purchasedGatherers < MAX_ANTS.GATHERER) {
+                    cost = POWERUP_COSTS.GATHERER;
+                    antClass = GathererAnt;
+                    purchased = true;
+                } else {
+                    return;
+                }
                 break;
             case 'FIGHTER':
-                 if (this.playerMound.antCounts.purchasedFighters < MAX_ANTS.FIGHTER) {
-                     cost = POWERUP_COSTS.FIGHTER;
-                     antClass = FighterAnt;
-                     purchased = true;
-                 } else {
-                     console.log("Fighter limit reached.");
-                     return; // Don't proceed if limit hit
-                 }
+                if (this.playerMound.antCounts.purchasedFighters < MAX_ANTS.FIGHTER) {
+                    cost = POWERUP_COSTS.FIGHTER;
+                    antClass = FighterAnt;
+                    purchased = true;
+                } else {
+                    return;
+                }
                 break;
             case 'MEGA_FIGHTER':
                 cost = POWERUP_COSTS.MEGA_FIGHTER;
                 antClass = MegaFighterAnt;
-                 purchased = false; // Mega fighters don't have a purchase limit in this design
+                purchased = false;
                 break;
             case 'SAND_BOMB':
                 cost = POWERUP_COSTS.SAND_BOMB;
                 if (this.playerMound.spendResources(cost)) {
-                    console.log("Player used Sand Bomb!");
                     this.aiMound.takeDamage(SAND_BOMB_DAMAGE);
-                    // Add visual effect for bomb later
                     this.spawnSandTornado(this.playerMound, this.aiMound);
-                    // Add sound effect here? this.sound.play('sand_bomb_sound');
-                    // const sfxVolume = this.registry.get('sfxVolume') / 100; // Get 0.0-1.0
-                    // this.sound.play('sand_bomb_sound_key', { volume: sfxVolume });
-                } else {
-                     console.log("Not enough resources for Sand Bomb");
                 }
-                return; // Handled differently
+                return;
         }
 
         if (antClass && cost > 0) {
             if (this.playerMound.spendResources(cost)) {
-                console.log(`Player bought ${type}`);
-                 // Pass purchased flag to spawnAnt
-                 let ant = this.playerMound.spawnAnt(antClass, purchased);
-                 if (ant) {
-                     this.playerAnts.add(ant);
-                 } else {
-                      // Refund if spawn failed unexpectedly (shouldn't happen with checks)
-                      console.error("Spawn failed after spending resources, refunding.");
-                      this.playerMound.addResources(cost); // Give back resources
-                 }
-            } else {
-                 console.log(`Not enough resources for ${type}`);
+                let ant = this.playerMound.spawnAnt(antClass, purchased);
+                if (ant) {
+                    this.playerAnts.add(ant);
+                } else {
+                    this.playerMound.addResources(cost);
+                }
             }
         }
-         this.updatePowerupButtons(); // Update buttons after purchase attempt
+        this.updatePowerupButtons();
     }
 
-
     setupCollisions() {
-        console.log("Setting up collisions...");
-        // --- Ant vs Ant Collisions ---
         this.physics.add.overlap(this.playerAnts, this.aiAnts, this.handleAntVsAntCollision, null, this);
-
-        // --- Ant vs Enemy Mound Collisions ---
         this.physics.add.overlap(this.playerAnts, this.aiMound, this.handleAntVsMoundCollision, null, this);
         this.physics.add.overlap(this.aiAnts, this.playerMound, this.handleAntVsMoundCollision, null, this);
-
-        // --- Gatherer vs Food Collisions ---
-        // Need to check ant type inside the handler
         this.physics.add.overlap(this.playerAnts, this.foodSources, this.handleGathererVsFoodCollision, null, this);
         this.physics.add.overlap(this.aiAnts, this.foodSources, this.handleGathererVsFoodCollision, null, this);
-
-        // --- Gatherer vs Home Mound Collisions (for dropping off food) ---
-        // Need to check ant type inside the handler
         this.physics.add.overlap(this.playerAnts, this.playerMound, this.handleGathererVsHomeMoundCollision, null, this);
         this.physics.add.overlap(this.aiAnts, this.aiMound, this.handleGathererVsHomeMoundCollision, null, this);
-
-        console.log("Collisions set up.");
     }
 
     // --- Collision Handlers ---
 
     handleAntVsAntCollision(ant1, ant2) {
-    if (!ant1.active || !ant2.active) return;
-    if (ant1.ownerMound === ant2.ownerMound) return;
+        if (!ant1.active || !ant2.active) return;
+        if (ant1.ownerMound === ant2.ownerMound) return;
+        if (ant1 instanceof GathererAnt || ant2 instanceof GathererAnt) return;
 
-    // --- GATHERERS ARE INDESTRUCTIBLE IN COMBAT ---
-    // If either ant involved in the collision is a GathererAnt, do nothing.
-    // They completely ignore all other ants in combat scenarios.
-    if (ant1 instanceof GathererAnt || ant2 instanceof GathererAnt) {
-         // Optional Log: console.log(`Collision ignored: Involving Gatherer`);
-        return; // Exit the function, no interaction happens
-    }
-    // --- End Gatherer Ignore Logic ---
-
-    // --- Logic now only applies to Fighter vs Fighter, Mega vs Fighter, Mega vs Mega ---
-
-    // Mega vs Mega = both die
-    if (ant1.isMega && ant2.isMega) {
-        console.log("Mega vs Mega collision");
-        // Since only Fighters/Megas reach here, both must be Mega
-        ant1.destroyAnt();
-        ant2.destroyAnt();
-    }
-    // Mega vs Normal Fighter = normal dies
-    else if (ant1.isMega && !ant2.isMega) { // ant2 must be Fighter
-        console.log("Mega vs Fighter collision");
-        ant2.destroyAnt(); // Destroy the Fighter
-    } else if (!ant1.isMega && ant2.isMega) { // ant1 must be Fighter
-        console.log("Fighter vs Mega collision");
-        ant1.destroyAnt(); // Destroy the Fighter
-    }
-    // Fighter vs Fighter = both die
-    else if (ant1 instanceof FighterAnt && ant2 instanceof FighterAnt) {
-         console.log("Fighter vs Fighter collision");
-         ant1.destroyAnt();
-         ant2.destroyAnt();
-    }
-    else {
-        // This case should ideally not be reached if only Fighters/Megas get past the Gatherer check
-        console.warn(`Unhandled ant vs ant collision (Post-Gatherer Check): ${ant1.constructor.name} vs ${ant2.constructor.name}`);
-    }
+        if (ant1.isMega && ant2.isMega) {
+            ant1.destroyAnt();
+            ant2.destroyAnt();
+        } else if (ant1.isMega && !ant2.isMega) {
+            ant2.destroyAnt();
+        } else if (!ant1.isMega && ant2.isMega) {
+            ant1.destroyAnt();
+        } else if (ant1 instanceof FighterAnt && ant2 instanceof FighterAnt) {
+            ant1.destroyAnt();
+            ant2.destroyAnt();
+        }
     }
 
     handleAntVsMoundCollision(mound, ant) {
-    if (!(mound instanceof Mound)) [mound, ant] = [ant, mound];
-    if (!ant || !ant.active || !mound || !mound.active || !(mound instanceof Mound) || !(ant instanceof Ant)) return;
+        if (!(mound instanceof Mound)) [mound, ant] = [ant, mound];
+        if (!ant || !ant.active || !mound || !mound.active || !(mound instanceof Mound) || !(ant instanceof Ant)) return;
+        if (ant.ownerMound === mound) return;
 
-    // If ant reaches its OWN mound, this handler should ignore it
-    // (Gatherer drop-off is handled by handleGathererVsHomeMoundCollision)
-    if (ant.ownerMound === mound) return;
-
-    // --- Ant is hitting an ENEMY mound ---
-
-    // Only Fighters and Mega Fighters damage mounds
-    if (ant instanceof FighterAnt || ant instanceof MegaFighterAnt) {
-        console.log(`Ant ${ant.constructor.name} hit ENEMY mound ${mound.isPlayer ? 'Player' : 'AI'}`);
-        mound.takeDamage(ant.damage);
-        ant.destroyAnt(); // Fighter/Mega gets destroyed after attacking mound
-    }
-    // Gatherers hitting enemy mound just get stopped/pass through (no destruction)
-    else if (ant instanceof GathererAnt) {
-        console.log(`Gatherer hit ENEMY mound ${mound.isPlayer ? 'Player' : 'AI'} - Ignoring/Blocking.`);
-        // Option 1: Stop the ant completely
-        ant.body?.setVelocity(0, 0);
-        ant.setTarget(null); // Lose target
-        // Option 2: Let physics handle overlap (they might just push past slightly or get stuck)
-        // Option 3: Destroy the gatherer (if you decide they *should* die here after all)
-        // ant.destroyAnt(); // Uncomment if they should die here
-    }
-     else {
-         // Other ant types? Currently none.
-         console.warn(`Unknown ant type ${ant.constructor.name} hit ENEMY mound.`);
-         ant.destroyAnt(); // Default: destroy unknown types?
-     }
+        if (ant instanceof FighterAnt || ant instanceof MegaFighterAnt) {
+            mound.takeDamage(ant.damage);
+            ant.destroyAnt();
+        } else if (ant instanceof GathererAnt) {
+            ant.body?.setVelocity(0, 0);
+            ant.setTarget(null);
+        }
     }
 
     handleGathererVsFoodCollision(ant, food) {
         if (!ant.active || !food.active) return;
-
-        // Check if the ant is a Gatherer and is NOT currently carrying food
         if (ant instanceof GathererAnt && !ant.carryingFood) {
-            // Check if the food is its current target or if it needs a new target
-             if (ant.target === food || !ant.target || !ant.target.active) {
-                 ant.collectFood(food); // collectFood handles destroying the food sprite
-             }
-             // If the gatherer bumped into food it wasn't targetting, it might ignore it
-             // or retarget - current logic focuses on targetted food.
+            if (ant.target === food || !ant.target || !ant.target.active) {
+                ant.collectFood(food);
+            }
         }
     }
 
     handleGathererVsHomeMoundCollision(mound, ant) {
-         if (!ant.active || !mound.active) return;
-
-        // Check if it's a Gatherer, it IS carrying food, and it reached ITS OWN mound
+        if (!ant.active || !mound.active) return;
         if (ant instanceof GathererAnt && ant.carryingFood && ant.ownerMound === mound) {
-             ant.dropOffFood();
+            ant.dropOffFood();
         }
     }
 
-    handleGathererVsHomeMoundCollision(mound, ant) {
-     if (!ant.active || !mound.active) return;
-
-     // Check if it's a Gatherer, it IS carrying food, and it reached ITS OWN mound
-     if (ant instanceof GathererAnt && ant.carryingFood && ant.ownerMound === mound) {
-         // *** Add log for collision handler trigger ***
-         console.log(`HANDLER: Gatherer [${ant.x.toFixed(0)},${ant.y.toFixed(0)}] collided with HOME MOUND [${mound.x.toFixed(0)},${mound.y.toFixed(0)}]`);
-         ant.dropOffFood();
-     }
-    }
-
-    // --- AI Logic ---
+    // --- AI Logic (level-tuned) ---
     runAI() {
         if (this.isGameOver || !this.aiMound) return;
 
         const ai = this.aiMound;
         const res = ai.resources;
         const counts = ai.antCounts;
+        const aggro = this.level.aiAggressiveness;
+        let purchasedSomething = false;
 
-        // Simple Priority AI:
-        // 1. Max out Gatherers first? (Maybe limit to 2 initially)
-        // 2. Get Mega Fighters if affordable?
-        // 3. Spam regular Fighters?
-        // 4. Use Sand Bomb if very rich?
-
-        // Decision order can be adjusted for different strategies
-         let purchasedSomething = false;
-
-        // Priority 1: Sand Bomb if affordable and maybe useful (e.g., player has high health?)
-        if (res >= POWERUP_COSTS.SAND_BOMB && this.playerMound.health > 50 && Math.random() < 0.2) { // 20% chance if affordable
-             if (ai.spendResources(POWERUP_COSTS.SAND_BOMB)) {
-                 console.log("AI used Sand Bomb!");
-                 this.playerMound.takeDamage(SAND_BOMB_DAMAGE);
-                 this.spawnSandTornado(this.aiMound, this.playerMound);
-                 purchasedSomething = true;
-             }
+        // Priority 1: Sand Bomb
+        if (res >= POWERUP_COSTS.SAND_BOMB && this.playerMound.health > 50 && Math.random() < this.level.aiBombChance * aggro) {
+            if (ai.spendResources(POWERUP_COSTS.SAND_BOMB)) {
+                this.playerMound.takeDamage(SAND_BOMB_DAMAGE);
+                this.spawnSandTornado(this.aiMound, this.playerMound);
+                purchasedSomething = true;
+            }
         }
 
-        // Priority 2: Mega Fighter if affordable
-        if (!purchasedSomething && res >= POWERUP_COSTS.MEGA_FIGHTER && Math.random() < 0.4) { // 40% chance if affordable
-             if (ai.spendResources(POWERUP_COSTS.MEGA_FIGHTER)) {
-                 console.log("AI bought Mega Fighter");
-                 let ant = ai.spawnAnt(MegaFighterAnt);
-                 if (ant) this.aiAnts.add(ant);
-                 purchasedSomething = true;
-             }
+        // Priority 2: Mega Fighter
+        if (!purchasedSomething && res >= POWERUP_COSTS.MEGA_FIGHTER && Math.random() < this.level.aiMegaChance * aggro) {
+            if (ai.spendResources(POWERUP_COSTS.MEGA_FIGHTER)) {
+                let ant = ai.spawnAnt(MegaFighterAnt);
+                if (ant) this.aiAnts.add(ant);
+                purchasedSomething = true;
+            }
         }
 
-
-        // Priority 3: Maintain Gatherers if below max purchased and affordable
-        if (!purchasedSomething && counts.purchasedGatherers < MAX_ANTS.GATHERER && res >= POWERUP_COSTS.GATHERER && Math.random() < 0.6) { // 60% chance
+        // Priority 3: Gatherers
+        if (!purchasedSomething && counts.purchasedGatherers < MAX_ANTS.GATHERER && res >= POWERUP_COSTS.GATHERER && Math.random() < this.level.aiGathererChance * aggro) {
             if (ai.spendResources(POWERUP_COSTS.GATHERER)) {
-                 console.log("AI bought Gatherer");
-                 let ant = ai.spawnAnt(GathererAnt, true); // Mark as purchased
-                 if (ant) this.aiAnts.add(ant);
-                  purchasedSomething = true;
+                let ant = ai.spawnAnt(GathererAnt, true);
+                if (ant) this.aiAnts.add(ant);
+                purchasedSomething = true;
             }
         }
 
-        // Priority 4: Buy Fighter if below max purchased and affordable
-        if (!purchasedSomething && counts.purchasedFighters < MAX_ANTS.FIGHTER && res >= POWERUP_COSTS.FIGHTER && Math.random() < 0.7) { // 70% chance
+        // Priority 4: Fighters
+        if (!purchasedSomething && counts.purchasedFighters < MAX_ANTS.FIGHTER && res >= POWERUP_COSTS.FIGHTER && Math.random() < this.level.aiFighterChance * aggro) {
             if (ai.spendResources(POWERUP_COSTS.FIGHTER)) {
-                 console.log("AI bought Fighter");
-                 let ant = ai.spawnAnt(FighterAnt, true); // Mark as purchased
-                 if (ant) this.aiAnts.add(ant);
-                  purchasedSomething = true;
+                let ant = ai.spawnAnt(FighterAnt, true);
+                if (ant) this.aiAnts.add(ant);
+                purchasedSomething = true;
             }
         }
-
-
-        // Fallback: If still haven't done anything and have enough for a basic fighter (even if at limit, maybe?)
-        // Let's stick to limits for now. AI will save resources if it can't buy anything useful.
-
-
-        // Add more sophisticated logic later:
-        // - React to player's army composition
-        // - Save up for specific units
-        // - Defend if attacked heavily
     }
 
-    // --- Game Over ---
+    // --- Game Over / Level Complete ---
     gameOver(message) {
-        if (this.isGameOver) return; // Prevent multiple triggers
+        if (this.isGameOver) return;
 
         console.log("GAME OVER:", message);
         this.isGameOver = true;
 
-        // Play sounde depending who won
-        if( message.indexOf("Player") > -1) {
+        // Play sound
+        if (message.indexOf("Player") > -1) {
             this.sound.play(ASSETS.SOUND_SFX_GAME_WON, { volume: this.sfxVolume });
         } else {
             this.sound.play(ASSETS.SOUND_SFX_GAME_LOST, { volume: this.sfxVolume });
         }
 
         // Stop music
-        let currentMusic = this.sound.get(ASSETS.MUSIC_BACKGROUND); // Get potentially playing music
+        let currentMusic = this.sound.get(ASSETS.MUSIC_BACKGROUND);
         if (currentMusic && currentMusic.isPlaying) {
-             currentMusic.stop();
-             console.log("Background music stopped by Game Over.");
+            currentMusic.stop();
         }
-        // Clear local reference if needed
         this.backgroundMusic = null;
 
         // Stop timers
@@ -707,46 +553,57 @@ class GameScene extends Phaser.Scene {
         if (this.aiTimer) this.aiTimer.remove();
 
         // Stop all ants
-        this.playerAnts.getChildren().forEach(ant => ant.body.setVelocity(0, 0));
-        this.aiAnts.getChildren().forEach(ant => ant.body.setVelocity(0, 0));
+        this.playerAnts.getChildren().forEach(ant => { if (ant.body) ant.body.setVelocity(0, 0); });
+        this.aiAnts.getChildren().forEach(ant => { if (ant.body) ant.body.setVelocity(0, 0); });
 
-        // Display game over message
-        this.gameOverText.setText(message);
-        this.gameOverText.setVisible(true);
+        const playerWon = message.indexOf("Player") > -1;
 
-         // Optionally, add a restart button
-         this.time.delayedCall(3000, () => { // After 3 seconds
-              this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 60, 'Click to Restart', {
-                  fontSize: '24px', fill: '#ffff00', backgroundColor: '#000000'
-              })
-              .setOrigin(0.5)
-              .setInteractive({ useHandCursor: true })
-              .on('pointerdown', () => this.scene.restart());
-          });
+        if (playerWon) {
+            // --- Level Complete ---
+            const currentLevel = this.level;
+            const currentLevelIndex = LEVELS.findIndex(l => l.id === currentLevel.id);
+            const nextLevelIndex = currentLevelIndex + 1;
+            const nextLevel = nextLevelIndex < LEVELS.length ? LEVELS[nextLevelIndex] : null;
+
+            // Unlock next level
+            const maxUnlocked = this.registry.get('maxUnlockedLevel') || 1;
+            if (nextLevel && nextLevel.id > maxUnlocked) {
+                this.registry.set('maxUnlockedLevel', nextLevel.id);
+            }
+
+            // Store data for LevelCompleteScene
+            this.registry.set('completedLevel', currentLevel);
+            this.registry.set('nextLevel', nextLevel);
+            this.registry.set('playerHPAtEnd', this.playerMound.health);
+            this.registry.set('aiHPAtEnd', this.aiMound.health);
+
+            // Transition after brief delay
+            this.time.delayedCall(1500, () => {
+                this.scene.start('LevelCompleteScene');
+            });
+        } else {
+            // --- Defeat ---
+            this.registry.set('failedLevel', this.level);
+            this.registry.set('playerHPAtEnd', this.playerMound.health);
+            this.registry.set('aiHPAtEnd', this.aiMound.health);
+
+            this.time.delayedCall(1500, () => {
+                this.scene.start('GameOverScene');
+            });
+        }
     }
-
 
     update(time, delta) {
         if (this.isGameOver) return;
 
-        // min food check - Ensure at least 1 food source is available
+        // Minimum food guarantee (using level-specific max)
         if (this.foodSources && this.foodSources.countActive(true) === 0) {
-            console.log("GUARANTEE_MIN_FOOD: Count is zero, attempting spawn.");
-            this.spawnFood(); // Try to spawn a replacement immediately
+            this.spawnFood();
             this.spawnFood();
         }
 
-        // Updates are handled by groups (runChildUpdate: true) and Mound update methods if needed.
-        // We might add checks here later if necessary.
-
-         // Prune dead ants from mound arrays (though destroyAnt should handle this)
-         // This is a safety check
-         if (this.playerMound) this.playerMound.ants = this.playerMound.ants.filter(ant => ant.active);
-         if (this.aiMound) this.aiMound.ants = this.aiMound.ants.filter(ant => ant.active);
-
-          // Update UI (buttons might need updating if limits change based on live ants, not just purchased)
-          // For now, updatePowerupButtons is called on resource change or purchase attempt.
-          // If limits depend on *active* ants, call it here:
-          // this.updatePowerupButtons();
+        // Prune dead ants
+        if (this.playerMound) this.playerMound.ants = this.playerMound.ants.filter(ant => ant.active);
+        if (this.aiMound) this.aiMound.ants = this.aiMound.ants.filter(ant => ant.active);
     }
 }

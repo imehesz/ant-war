@@ -1,35 +1,32 @@
 // js/entities/Mound.js
 class Mound extends Phaser.Physics.Arcade.Sprite {
-    constructor(scene, x, y, texture, isPlayer, enemyMoundRef) {
+    constructor(scene, x, y, texture, isPlayer, enemyMoundRef, customHealth) {
         super(scene, x, y, texture);
         scene.add.existing(this);
         scene.physics.add.existing(this, true); // Make mound static
 
-        this.health = MOUND_START_HEALTH;
+        this.health = customHealth || MOUND_START_HEALTH;
         this.resources = MOUND_START_RESOURCES;
         this.isPlayer = isPlayer;
-        this.enemyMound = enemyMoundRef; // Reference to the opponent
-        this.ants = []; // Keep track of owned ants
+        this.enemyMound = enemyMoundRef;
+        this.ants = [];
 
-         // Ant counts
          this.antCounts = {
              FighterAnt: 0,
              GathererAnt: 0,
              MegaFighterAnt: 0,
-             purchasedFighters: 0, // Track purchased ones specifically for limit
-             purchasedGatherers: 0 // Track purchased ones specifically for limit
+             purchasedFighters: 0,
+             purchasedGatherers: 0
          };
 
         this.setImmovable(true);
 
-        // Health text (display only for player for now)
+        // Health text
         if (this.isPlayer) {
-            // this.healthText = scene.add.text(40, y + 30, `H: ${this.health}`, { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-            // this.resourceText = scene.add.text(30, y + 50, `R: ${this.resources}`, { fontSize: '16px', fill: '#ffd700', fontStyle: 'bold' }).setOrigin(0.5);
+            // Player health shown via UI icons
         } else {
-             // Maybe add AI health display later for debugging/clarity if needed
-             this.healthText = scene.add.text(x, y - 40, `Health: ${this.health}`, { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-             this.resourceText = null; // AI resources not shown
+            this.healthText = scene.add.text(x, y - 40, `Health: ${this.health}`, { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            this.resourceText = null;
         }
     }
 
@@ -37,13 +34,11 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
         this.enemyMound = enemy;
     }
 
-    // js/entities/Mound.js -> spawnAnt method
-    spawnAnt(AntClass, purchase = false) { // Accept the purchase flag
+    spawnAnt(AntClass, purchase = false) {
     if (!this.enemyMound) {
         console.error("Cannot spawn ant, enemy mound not set!");
         return null;
     }
-    // Check purchase limits
     if (purchase) {
         if (AntClass === GathererAnt && this.antCounts.purchasedGatherers >= MAX_ANTS.GATHERER) {
             console.log(`${this.isPlayer ? 'Player' : 'AI'} Max purchased Gatherers reached`);
@@ -59,17 +54,15 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
     const ant = new AntClass(this.scene, this.x, this.y + spawnOffset, this, this.enemyMound);
 
     if (ant) {
-         ant.wasPurchased = purchase; // *** SET THE FLAG HERE ***
+         ant.wasPurchased = purchase;
          this.ants.push(ant);
          if (purchase) {
              if (AntClass === GathererAnt) this.antCounts.purchasedGatherers++;
              if (AntClass === FighterAnt) this.antCounts.purchasedFighters++;
-             console.log(`Incremented purchased ${AntClass.name} count for ${this.isPlayer ? 'Player' : 'AI'}. New count: ${purchase ? (AntClass === GathererAnt ? this.antCounts.purchasedGatherers : this.antCounts.purchasedFighters) : 'N/A'}`);
          }
-          // Update player UI immediately after purchase
-          if (this.isPlayer && purchase) {
-              this.scene.updatePowerupButtons();
-          }
+         if (this.isPlayer && purchase) {
+             this.scene.updatePowerupButtons();
+         }
          return ant;
     }
     return null;
@@ -78,19 +71,14 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
      incrementAntCount(antClassName) {
          if (this.antCounts.hasOwnProperty(antClassName)) {
              this.antCounts[antClassName]++;
-              console.log(`${this.isPlayer ? 'Player' : 'AI'} ${antClassName} count: ${this.antCounts[antClassName]}`);
          }
      }
 
      decrementAntCount(antClassName) {
           if (this.antCounts.hasOwnProperty(antClassName)) {
              this.antCounts[antClassName]--;
-             // Note: We don't decrement 'purchased' counts here, only total counts.
-             // 'purchased' counts track how many have been *bought*, not how many are currently alive.
-             console.log(`${this.isPlayer ? 'Player' : 'AI'} ${antClassName} count: ${this.antCounts[antClassName]}`);
          }
      }
-
 
     takeDamage(amount) {
         this.health -= amount;
@@ -99,12 +87,10 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
 
         if (this.healthText) {
             if( this.isPlayer) {
-                // Only show health text for the player mound
                 this.healthText.setText(stringUtils.leftFill(this.health,3,'0'))
             } else {
                 this.healthText.setText(`Health: ${this.health}`)
             }
-            // Add visual feedback (flash red?)
             this.scene.tweens.add({
                 targets: this,
                 alpha: 0.5,
@@ -124,7 +110,6 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
         if (this.resourceText) {
             this.resourceText.setText(stringUtils.leftFill(this.resources,4,'0'));
         }
-         // Update powerup button states if this is the player mound
          if (this.isPlayer) {
              this.scene.updatePowerupButtons();
          }
@@ -136,17 +121,15 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
               if (this.resourceText) {
                  this.resourceText.setText(stringUtils.leftFill(this.resources, 4, '0'));
              }
-             // Update powerup button states if this is the player mound
              if (this.isPlayer) {
                   this.scene.updatePowerupButtons();
              }
-             return true; // Purchase successful
+             return true;
          }
-         return false; // Not enough resources
+         return false;
      }
 
-
     update(time, delta) {
-        // Mound specific updates if any (e.g., passive resource generation?)
+        // Mound specific updates if any
     }
 }
