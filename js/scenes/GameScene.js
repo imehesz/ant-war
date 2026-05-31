@@ -569,6 +569,7 @@ class GameScene extends Phaser.Scene {
             const maxUnlocked = this.registry.get('maxUnlockedLevel') || 1;
             if (nextLevel && nextLevel.id > maxUnlocked) {
                 this.registry.set('maxUnlockedLevel', nextLevel.id);
+                GameSave.set('maxUnlockedLevel', nextLevel.id);
             }
 
             // Store data for LevelCompleteScene

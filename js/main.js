@@ -29,4 +29,7 @@ const game = new Phaser.Game(config);
 // Initialize registry defaults
 game.registry.set('musicVolume', 0);
 game.registry.set('sfxVolume', 50);
-game.registry.set('maxUnlockedLevel', 1); // Start with only level 1 unlocked
+
+// Load level progress from localStorage
+const savedLevel = GameSave.get('maxUnlockedLevel', 1);
+game.registry.set('maxUnlockedLevel', savedLevel);

@@ -23,9 +23,18 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
 
         // Health text
         if (this.isPlayer) {
-            // Player health shown via UI icons
+            // Player health: bottom display near mound
+            this.bottomHealthText = scene.add.text(x, y + 40, `Health: ${this.health}`, {
+                fontSize: '16px', fill: '#fff', fontStyle: 'bold',
+                backgroundColor: '#000000aa', padding: { left: 6, right: 6, top: 2, bottom: 2 }
+            }).setOrigin(0.5);
+            this.bottomHealthText.setDepth(10);
         } else {
-            this.healthText = scene.add.text(x, y - 40, `Health: ${this.health}`, { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            // Enemy health: above mound with dark background
+            this.healthText = scene.add.text(x, y - 40, `Health: ${this.health}`, {
+                fontSize: '16px', fill: '#fff', fontStyle: 'bold',
+                backgroundColor: '#000000aa', padding: { left: 6, right: 6, top: 2, bottom: 2 }
+            }).setOrigin(0.5);
             this.resourceText = null;
         }
     }
@@ -97,6 +106,11 @@ class Mound extends Phaser.Physics.Arcade.Sprite {
                 duration: 100,
                 yoyo: true,
             });
+        }
+
+        // Update bottom health text for player mound
+        if (this.bottomHealthText) {
+            this.bottomHealthText.setText(`Health: ${this.health}`);
         }
 
         if (this.health <= 0) {
